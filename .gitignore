@@ -1,20 +1,35 @@
-# Dependency directories
-node_modules/
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-# Build artifacts
-dist/
-build/
-*.log
-*.pid
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
 
-# Environment variables
-.env
+# testing
+/coverage
 
-# IDE and editor specific files
-.vscode/
-.idea/
-*.code-workspace
+# next.js
+/.next/
+/out/
 
-# OS-specific files
+# production
+/build
+
+# misc
 .DS_Store
-Thumbs.db
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# local env files
+.env*.local
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts

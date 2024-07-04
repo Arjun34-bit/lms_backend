@@ -1,7 +1,16 @@
 {
+  "name": "your_project_name",
+  "version": "1.0.0",
+  "description": "Your project description",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js"
+  },
   "dependencies": {
     "body-parser": "^1.20.2",
     "express": "^4.19.2",
-    "mongoose": "^8.3.3"
+    "minio": "^8.0.0",
+    "mongoose": "^8.3.4",
+    "multiparty": "^4.2.3"
   }
 }
