@@ -30,7 +30,7 @@ async function uploadVideoToMinio(bucketName, objectName, filePath) {
         console.log(`Video uploaded successfully: ${objectName}`);
     } catch (error) {
         console.error('Error uploading video:', error);
-        throw error;
+        // throw error;
     } finally {
         // Clean up the local file after uploading
         fs.unlinkSync(filePath);
@@ -60,6 +60,8 @@ exports.uploadVideo = async(req, res) => {
 
 
         const courseId = fields.courseId ? fields.courseId[0] : null;
+        const title = fields.title[0];
+        const description = fields.description[0];
 
 
 
@@ -72,6 +74,10 @@ exports.uploadVideo = async(req, res) => {
             console.log(files);
             const file = files.null[0];
             const bucketName = 'courses';
+
+            console.log(title);
+
+            console.log(description);
             const objectName = path.basename(file.path);
             await uploadVideoToMinio(bucketName, objectName, file.path).then(
                 async() => {
@@ -93,6 +99,8 @@ exports.uploadVideo = async(req, res) => {
 
                     // Add video details to CourseData
                     courseData.videoList.push({
+                        title: title,
+                        description: description,
                         videoPath: objectName,
                         videoFolder: 'courses',
                         videoSeenLength: 0, // Initially set to 0

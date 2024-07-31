@@ -5,6 +5,14 @@ const VideoSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+    title: {
+        type: String,
+        required: true
+    },
+    description: {
+        type: String,
+        required: true
+    },
     videoFolder: {
         type: String,
         required: true
