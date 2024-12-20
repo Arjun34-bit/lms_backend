@@ -1,0 +1,4 @@
+module.exports = {
+    JWT_SECRET: process.env.JWT_SECRET || 'e59799e06fe859720c9a69cfaf7371c11c564a831074b4e9b4839684f74b00a33903cb1604368229d1b4a0ba56da98c07a60b691086029275bab54bee6455712',
+    TOKEN_EXPIRY: '15d' // Token expiration
+};

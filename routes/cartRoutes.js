@@ -1,12 +1,21 @@
-// // routes/cartRoutes.js
-// const express = require("express");
-// const router = express.Router();
-// const cartController = require("../controllers/cartController");
+const express = require('express');
+const router = express.Router();
+const cartController = require('../controllers/cartController');
+const authMiddleware = require('../middlewares/authMiddleware');
 
-// router.get("/cart/:userId", cartController.getCart);
+// Add a course to the cart (Protected route)
+router.post('/add', authMiddleware.verifyToken, authMiddleware.isStudentOrInstructor, cartController.addToCart);
 
-// router.post("/cart/:userId", cartController.addToCart);
+// Get all courses in the user's cart (Protected route)
+router.get('/', authMiddleware.verifyToken, authMiddleware.isStudentOrInstructor, cartController.getCart);
 
-// router.delete("/cart/:userId", cartController.removeFromCart);
+// Update cart (Used for adding/updating, same as add) (Protected route)
+router.put('/update', authMiddleware.verifyToken, authMiddleware.isStudentOrInstructor, cartController.updateCart);
 
-// module.exports = router;
+// Remove a course from the cart (Protected route)
+router.delete('/remove', authMiddleware.verifyToken, authMiddleware.isStudentOrInstructor, cartController.removeFromCart);
+
+// Clear the entire cart (Protected route)
+router.delete('/clear', authMiddleware.verifyToken, authMiddleware.isStudentOrInstructor, cartController.clearCart);
+
+module.exports = router;

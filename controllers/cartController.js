@@ -1,69 +1,122 @@
-// controllers/cartController.js
-const Cart = require('../models/Cart');
+const Cart = require('../models/cart');
+const Course = require('../models/courseModel');
 
-// Fetch cart details
-exports.getCart = async (req, res) => {
+// Helper function to validate published courses
+const validatePublishedCourse = async (courseId) => {
+  const course = await Course.findById(courseId);
+  if (!course) throw new Error('Course not found');
+  if (course.status !== 'published') throw new Error('Only published courses can be added or removed');
+  return course;
+};
+
+// Create: Add a course to the cart
+exports.addToCart = async (req, res) => {
   try {
-    const { userId } = req.params;
-    const cart = await Cart.findOne({ userId }).populate('items.courseId');
-    if (!cart) {
-      return res.status(404).json({ message: 'Cart not found' });
+    const { courseId } = req.body;
+    const userId = req.user.id; // Extracted from token
+
+    await validatePublishedCourse(courseId);
+
+    let cart = await Cart.findOne({ user: userId });
+
+    if (cart) {
+      if (!cart.courses.includes(courseId)) {
+        cart.courses.push(courseId);
+        await cart.save();
+        return res.status(200).json({ message: 'Course added to cart successfully' });
+      } else {
+        return res.status(400).json({ message: 'Course is already in the cart' });
+      }
+    } else {
+      cart = new Cart({ user: userId, courses: [courseId] });
+      await cart.save();
+      return res.status(201).json({ message: 'Course added to cart successfully' });
     }
-    res.status(200).json(cart);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(400).json({ message: error.message });
   }
 };
 
-// Add item to cart
-exports.addToCart = async (req, res) => {
+// Read: Get all courses in the user's cart
+exports.getCart = async (req, res) => {
   try {
-    const { userId } = req.params;
-    const { courseId, quantity } = req.body;
+    const userId = req.user.id; // Extracted from token
+    const cart = await Cart.findOne({ user: userId }).populate('courses');
 
-    let cart = await Cart.findOne({ userId });
+    if (!cart) return res.status(404).json({ message: 'Cart not found' });
 
-    if (!cart) {
-      cart = new Cart({ userId, items: [{ courseId, quantity }] });
-    } else {
-      const itemIndex = cart.items.findIndex(item => item.courseId.toString() === courseId);
+    res.status(200).json(cart);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching cart', error });
+  }
+};
 
-      if (itemIndex > -1) {
-        cart.items[itemIndex].quantity += quantity;
+// Update: Add or replace courses in the cart
+exports.updateCart = async (req, res) => {
+  try {
+    const { courseId } = req.body;
+    const userId = req.user.id; // Extracted from token
+
+    await validatePublishedCourse(courseId);
+
+    let cart = await Cart.findOne({ user: userId });
+
+    if (cart) {
+      if (!cart.courses.includes(courseId)) {
+        cart.courses.push(courseId);
+        await cart.save();
+        return res.status(200).json({ message: 'Course updated in cart successfully' });
       } else {
-        cart.items.push({ courseId, quantity });
+        return res.status(400).json({ message: 'Course is already in the cart' });
       }
+    } else {
+      cart = new Cart({ user: userId, courses: [courseId] });
+      await cart.save();
+      return res.status(201).json({ message: 'Course added to cart successfully' });
+    }
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
+// Delete: Remove a course from the cart
+exports.removeFromCart = async (req, res) => {
+  try {
+    const { courseId } = req.body;
+    const userId = req.user.id; // Extracted from token
+
+    await validatePublishedCourse(courseId);
+
+    const cart = await Cart.findOne({ user: userId });
+
+    if (!cart) return res.status(404).json({ message: 'Cart not found' });
+
+    cart.courses = cart.courses.filter((course) => course.toString() !== courseId);
+
+    if (cart.courses.length === 0) {
+      await Cart.deleteOne({ user: userId });
+      return res.status(200).json({ message: 'Cart is empty, deleted successfully' });
     }
 
     await cart.save();
-    res.status(200).json({ message: 'Item added to cart', cart });
+    res.status(200).json({ message: 'Course removed from cart successfully' });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(400).json({ message: error.message });
   }
 };
 
-// Remove item from cart
-exports.removeFromCart = async (req, res) => {
+// Delete: Clear the entire cart
+exports.clearCart = async (req, res) => {
   try {
-    const { userId } = req.params;
-    const { courseId } = req.body;
+    const userId = req.user.id; // Extracted from token
+    const cart = await Cart.findOne({ user: userId });
 
-    const cart = await Cart.findOne({ userId });
+    if (!cart) return res.status(404).json({ message: 'Cart not found' });
 
-    if (!cart) {
-      return res.status(404).json({ message: 'Cart not found' });
-    }
-
-    const itemIndex = cart.items.findIndex(item => item.courseId.toString() === courseId);
-
-    if (itemIndex > -1) {
-      cart.items.splice(itemIndex, 1);
-      await cart.save();
-      res.status(200).json({ message: 'Item removed from cart', cart });
-    } else {
-      res.status(404).json({ message: 'Item not found in cart' });
-    }
+    cart.courses = [];
+    await cart.save();
+    res.status(200).json({ message: 'Cart cleared successfully' });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ message: 'Error clearing cart', error });
   }
 };

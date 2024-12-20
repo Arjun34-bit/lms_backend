@@ -1,23 +1,9 @@
-// const express = require('express');
-// const router = express.Router();
-// const userController = require('../controllers/userController');
-// const couseController = require('../controllers/courseController')
+const express = require('express');
+const userController = require('../controllers/userController');
+const router = express.Router();
 
-// // Cart routes
-// router.post('/cart', userController.addToCart);
-// router.delete('/cart/:productId', userController.deleteFromCart);
+router.post('/update-email', userController.updateEmail);
+router.post('/link-social-account', userController.linkSocialAccount);
+router.post('/unlink-social-account', userController.unlinkSocialAccount);
 
-// // Wishlist routes
-// router.post('/wishlist', userController.addToWishlist);
-// router.delete('/wishlist/:productId', userController.deleteFromWishlist);
-
-// // Buy course route
-// router.post('/buy', userController.buyCourse);
-
-// // Refer & earn
-// router.post('/refer', userController.referAndEarn);
-
-// // My wallet
-// router.post('/wallet', userController.myWallet);
-
-// module.exports = router;
+module.exports = router; 
