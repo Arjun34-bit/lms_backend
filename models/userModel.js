@@ -42,8 +42,6 @@ const userSchema = new mongoose.Schema({
     timestamps: true
 });
 
-// userSchema.index({ email: 1 }, { unique: true });
-// userSchema.index({ phone_number: 1 }, { unique: true, sparse: true });
 
 userSchema.statics.roles = function() {
     return [ROLE_ADMIN, ROLE_USER, ROLE_STUDENT, ROLE_INSTRUCTOR];
