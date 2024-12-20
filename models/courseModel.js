@@ -1,20 +1,36 @@
 const mongoose = require('mongoose');
 
-const courseSchema = new mongoose.Schema({
-  title: { type: String, required: true },
-  description: { type: String, required: true },
-  instructor_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  category: { type: String },
-  type: { type: String },
-  level: { type: String },
-  duration: { type: String },
-  price: { type: Number },
-  status: { type: String },
-  thumbnail: { type: String },
-  
-  metadata: { type: Object }
-}, {
-  timestamps: true
-});
+const courseSchema = new mongoose.Schema(
+  {
+    title: { type: String, required: true, trim: true },
+    description: { type: String, required: true, trim: true },
+    instructor_id: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+    },
+    category: { type: String, trim: true },
+    type: { type: String, enum: ['free', 'paid'], default: 'paid' },
+    level: {
+      type: String,
+      enum: ['beginner', 'intermediate', 'advanced'],
+      default: 'beginner',
+    },
+    duration: { type: String, trim: true },
+    price: { type: Number, default: 0, min: 0 },
+    status: { type: String, enum: ['draft', 'published'], default: 'draft' },
+    thumbnail: { type: String, trim: true },
+    demoVideo: { type: String, trim: true },
+    metadata: {
+      rating: { type: Number, default: 0, min: 0, max: 5 },
+      enrolled: { type: Number, default: 0 },
+      language: { type: String, default: 'English' },
+    },
+    bestseller: { type: Boolean, default: false },
+  },
+  {
+    timestamps: true,
+  }
+);
 
-module.exports = mongoose.model('Course', courseSchema); 
+module.exports = mongoose.model('Course', courseSchema);

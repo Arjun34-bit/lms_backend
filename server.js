@@ -15,23 +15,31 @@ const transactionRoutes = require('./routes/transactionRoutes');
 const app = express();
 app.use(express.json());
 
-// Use CORS middleware - Allow all origins or specify allowed ones
-app.use(cors());
+// Configure CORS options
+const corsOptions = {
+  origin: process.env.ALLOWED_ORIGIN || 'http://localhost:3000', // Replace with your frontend URL
+  methods: ['GET', 'POST', 'PUT', 'DELETE'], // Allowed HTTP methods
+  allowedHeaders: ['Content-Type', 'Authorization'], // Allowed headers
+  credentials: true, // Allow credentials (cookies, authorization headers)
+};
+
+// Use CORS middleware with options
+app.use(cors(corsOptions));
 
 // MongoDB connection
 const mongoUri = process.env.MONGO_URI;
 if (!mongoUri) {
-    throw new Error('MONGO_URI ');
+  throw new Error('MONGO_URI is not defined');
 }
 
 mongoose.connect(mongoUri, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
 }).then(() => {
-    console.log('Connected to MongoDB');
+  console.log('Connected to MongoDB');
 }).catch(err => {
-    console.error('Error connecting to MongoDB:', err.message);
-    process.exit(1);
+  console.error('Error connecting to MongoDB:', err.message);
+  process.exit(1);
 });
 
 // Routes
@@ -44,8 +52,9 @@ app.use('/api/wishlist', wishlistRoutes);
 app.use('/api/transaction', transactionRoutes);
 app.use('/api/library-notes', libraryNoteRoutes);
 app.use('/api/quick-learning-videos', quickLearningVideoRoutes);
+
 // Start the server
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
-    console.log(`Server is running on http://localhost:${PORT}`);
+  console.log(`Server is running on http://localhost:${PORT}`);
 });

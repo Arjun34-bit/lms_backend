@@ -9,56 +9,74 @@ const admin = require('firebase-admin');
 const serviceAccount = require('../config/firebaseServiceAccountKey.json');
 
 admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount)
+    credential: admin.credential.cert(serviceAccount),
 });
 
 exports.validateToken = async (req, res) => {
     try {
-        const authHeader = req.headers['authorization']?.split(' ')[1];
-
-        if (!authHeader || !authHeader.startsWith('Bearer ')) {
-            return res.status(401).json({ valid: false, message: 'Token is missing or invalid.' });
-        }
-
-        const token = authHeader.split(' ')[1];
-        const decoded = jwt.verify(token, JWT_SECRET);
-
-        const storedToken = await Token.findOne({ token, tokenable: decoded.id });
-        if (!storedToken) {
-            return res.status(401).json({ valid: false, message: 'Token not found in the database.' });
-        }
-
-        const isExpired = new Date(storedToken.expires_at) < new Date();
-        if (isExpired) {
-            return res.status(401).json({ valid: false, message: 'Token has expired.' });
-        }
-
-        const user = await User.findById(decoded.id);
-        if (!user) {
-            return res.status(404).json({ valid: false, message: 'User not found.' });
-        }
-
-        res.status(200).json({
-            valid: true,
-            user: {
-                id: user._id,
-                email: user.email,
-                role: user.role,
-                phone_number: user.phone_number,
-                createdAt: user.createdAt,
-            },
-            token,
-        });
+      // Get the Authorization header
+      const authHeader = req.headers['authorization'];
+      
+      if (!authHeader) {
+        return res.status(401).json({ valid: false, message: 'Authorization header is missing.' });
+      }
+  
+      if (!authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ valid: false, message: 'Token is missing or invalid. It must start with "Bearer ". ' });
+      }
+  
+      const token = authHeader.split(' ')[1]; // Extract token from Bearer
+  
+      // Decode and verify the token
+      const decoded = jwt.verify(token, JWT_SECRET);
+  
+      // Check if the token exists in the database
+      const storedToken = await Token.findOne({ token, tokenable: decoded.id });
+      if (!storedToken) {
+        return res.status(401).json({ valid: false, message: 'Token not found in the database.' });
+      }
+  
+      // Check if the token is expired
+      if (new Date(storedToken.expires_at) < new Date()) {
+        return res.status(401).json({ valid: false, message: 'Token has expired.' });
+      }
+  
+      // Check if the user exists
+      const user = await User.findById(decoded.id);
+      if (!user) {
+        return res.status(404).json({ valid: false, message: 'User not found.' });
+      }
+  
+      // Return success response
+      res.status(200).json({
+        valid: true,
+        user: {
+          id: user._id,
+          email: user.email,
+          role: user.role,
+          phone_number: user.phone_number,
+          createdAt: user.createdAt,
+        },
+        token,
+      });
     } catch (err) {
-        res.status(401).json({ valid: false, message: 'Invalid token.', error: err.message });
+      // Handle errors and log for debugging purposes
+      console.error('Token validation error: ', err.message);
+      
+      // Specific error handling based on the type of error
+      if (err instanceof jwt.JsonWebTokenError) {
+        return res.status(401).json({ valid: false, message: 'Invalid token.', error: err.message });
+      }
+  
+      // Generic error fallback
+      return res.status(500).json({ valid: false, message: 'An error occurred while validating the token.', error: err.message });
     }
-};
-
+  };
 exports.register = async (req, res) => {
     try {
         const { email, password, role, phone_number, name } = req.body;
-
         const validationErrors = [];
+
         if (!email) validationErrors.push('Email is required.');
         if (!password) validationErrors.push('Password is required.');
         if (!role) validationErrors.push('Role is required.');
