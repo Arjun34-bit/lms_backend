@@ -1,30 +1,48 @@
-require('dotenv').config(); // Load environment variables from .env file
 const express = require('express');
 const mongoose = require('mongoose');
+const http = require('http');
 const cors = require('cors');
+const socketIo = require('socket.io');
+require('dotenv').config();  // Load environment variables
+
+// Import routes
 const authRoutes = require('./routes/authRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const courseRoutes = require('./routes/courseRoutes');
 const advertisementRoutes = require('./routes/advertisementRoutes');
 const cartRoutes = require('./routes/cartRoutes');
 const wishlistRoutes = require('./routes/wishlistRoutes');
+const transactionRoutes = require('./routes/transactionRoutes');
 const libraryNoteRoutes = require('./routes/libraryNoteRoutes');
 const quickLearningVideoRoutes = require('./routes/quickLearningVideoRoutes');
-const transactionRoutes = require('./routes/transactionRoutes');
+const liveClassRoutes = require('./routes/liveClassRoutes');  // New route for live classes
 
+// Initialize app and server
 const app = express();
-app.use(express.json());
+const server = http.createServer(app);
 
-// Configure CORS options
+// CORS configuration
 const corsOptions = {
-  origin: process.env.ALLOWED_ORIGIN || 'http://localhost:3000', // Replace with your frontend URL
-  methods: ['GET', 'POST', 'PUT', 'DELETE'], // Allowed HTTP methods
-  allowedHeaders: ['Content-Type', 'Authorization'], // Allowed headers
-  credentials: true, // Allow credentials (cookies, authorization headers)
+  origin: process.env.ALLOWED_ORIGIN || 'http://localhost:3000',  // Frontend URL
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,  // Allow credentials (cookies, authorization headers)
 };
 
-// Use CORS middleware with options
-app.use(cors(corsOptions));
+app.use(cors(corsOptions));  // Apply CORS middleware for HTTP requests
+
+// WebSocket setup with CORS
+const io = socketIo(server, {
+  cors: {
+    origin: process.env.ALLOWED_ORIGIN || 'http://localhost:3000',  // Frontend URL for WebSocket
+    methods: ['GET', 'POST'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true,  // Allow credentials (cookies, authorization headers)
+  }
+});
+
+// Middleware to parse JSON requests
+app.use(express.json());
 
 // MongoDB connection
 const mongoUri = process.env.MONGO_URI;
@@ -35,26 +53,55 @@ if (!mongoUri) {
 mongoose.connect(mongoUri, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
-}).then(() => {
+})
+.then(() => {
   console.log('Connected to MongoDB');
-}).catch(err => {
+})
+.catch(err => {
   console.error('Error connecting to MongoDB:', err.message);
   process.exit(1);
 });
 
-// Routes
+// WebSocket event handling for live classes
+io.on('connection', (socket) => {
+  console.log('A user connected');
+
+  // Handle joining a specific class room
+  socket.on('joinClass', (classId) => {
+    socket.join(classId);
+    console.log(`User joined class room: ${classId}`);
+  });
+
+  // Handle sending chat messages in class rooms
+  socket.on('sendMessage', (data) => {
+    io.to(data.classId).emit('receiveMessage', data.message);
+  });
+
+  // Handle broadcasting announcements to the class room
+  socket.on('sendAnnouncement', (data) => {
+    io.to(data.classId).emit('receiveAnnouncement', data.announcement);
+  });
+
+  // Handle user disconnection
+  socket.on('disconnect', () => {
+    console.log('User disconnected');
+  });
+});
+
+// API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/notifications', notificationRoutes);
-app.use('/api', courseRoutes);
+app.use('/api/courses', courseRoutes);
 app.use('/api/advertisements', advertisementRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/api/wishlist', wishlistRoutes);
 app.use('/api/transaction', transactionRoutes);
 app.use('/api/library-notes', libraryNoteRoutes);
 app.use('/api/quick-learning-videos', quickLearningVideoRoutes);
+app.use('/api/live-classes', liveClassRoutes);  // Live class API routes
 
-// Start the server
+// Start server
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
 });

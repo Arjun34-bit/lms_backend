@@ -4,13 +4,9 @@ const courseSchema = new mongoose.Schema(
   {
     title: { type: String, required: true, trim: true },
     description: { type: String, required: true, trim: true },
-    instructor_id: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      required: true,
-    },
+    instructor_id: { type: mongoose.Schema.Types.ObjectId, required: true, ref: 'User' },
     category: { type: String, trim: true },
-    type: { type: String, enum: ['free', 'paid'], default: 'paid' },
+    type: { type: String, trim: true },
     level: {
       type: String,
       enum: ['beginner', 'intermediate', 'advanced'],
@@ -20,7 +16,6 @@ const courseSchema = new mongoose.Schema(
     price: { type: Number, default: 0, min: 0 },
     status: { type: String, enum: ['draft', 'published'], default: 'draft' },
     thumbnail: { type: String, trim: true },
-    demoVideo: { type: String, trim: true },
     metadata: {
       rating: { type: Number, default: 0, min: 0, max: 5 },
       enrolled: { type: Number, default: 0 },
@@ -29,7 +24,7 @@ const courseSchema = new mongoose.Schema(
     bestseller: { type: Boolean, default: false },
   },
   {
-    timestamps: true,
+    timestamps: true, // Automatically creates `createdAt` and `updatedAt` fields
   }
 );
 
