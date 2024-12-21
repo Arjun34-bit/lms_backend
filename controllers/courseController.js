@@ -46,17 +46,18 @@ const createNotification = async (type, notifiableId, data) => {
 
 const createCourse = async (req, res) => {
   try {
-    const instructorId = req.body.instructor_id || req.user.id;  // Get instructor_id from body or token
+    const instructorId = req.body.instructor_id || req.user.id; // Get instructor_id from body or token
     if (!instructorId) {
-      return res.status(400).json({ message: 'Instructor ID is missing' });
+      return res.status(400).json({ message: "Instructor ID is missing." });
     }
 
+    // Handle thumbnail upload if a file is provided
     let thumbnailUrl = null;
     if (req.file) {
-      // Upload the thumbnail to S3 if a file is provided
       thumbnailUrl = await uploadToS3(req.file);
     }
 
+    // Create the course document
     const course = new Course({
       title: req.body.title,
       description: req.body.description,
@@ -67,14 +68,28 @@ const createCourse = async (req, res) => {
       duration: req.body.duration,
       price: req.body.price,
       status: req.body.status,
+      metadata: {
+        rating: req.body["metadata.rating"] || 0,
+        enrolled: req.body["metadata.enrolled"] || 0,
+        language: req.body["metadata.language"] || "English",
+      },
       thumbnail: thumbnailUrl, // Store the S3 URL of the uploaded thumbnail
+      bestseller: req.body.bestseller || false,
     });
 
+    // Save to the database
     await course.save();
-    res.status(201).json({ message: 'Course created successfully!', course });
+
+    // Return a success response with the created course
+    res.status(201).json({
+      message: "Course created successfully!",
+      course,
+    });
   } catch (err) {
-    console.error('Error creating course:', err);
-    res.status(500).json({ message: 'An error occurred while creating the course' });
+    console.error("Error creating course:", err);
+    res.status(500).json({
+      message: "An error occurred while creating the course. Please try again.",
+    });
   }
 };
 
