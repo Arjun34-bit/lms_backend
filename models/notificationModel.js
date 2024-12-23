@@ -10,15 +10,22 @@ const notificationSchema = new mongoose.Schema({
     updated_at: { type: Date, default: Date.now }
 });
 
-// Middleware to update timestamps
+// Middleware to handle creation and update timestamps
 notificationSchema.pre('save', function(next) {
-    this.updated_at = Date.now();
+    if (this.isNew) {
+        this.created_at = Date.now();
+        this.updated_at = Date.now();
+    } else {
+        this.updated_at = Date.now();
+    }
     next();
 });
 
+// Method to mark the notification as read
 notificationSchema.methods.markAsRead = function() {
     this.read_at = new Date();
     return this.save();
 };
 
-module.exports = mongoose.model('Notification', notificationSchema); 
+// Create and export the model
+module.exports = mongoose.model('Notification', notificationSchema);

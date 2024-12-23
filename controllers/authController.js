@@ -2,6 +2,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const ms = require('ms');
 const User = require('../models/userModel');
+const Notification = require('../models/notificationModel');
 const Token = require('../models/tokenModel');
 const { JWT_SECRET, TOKEN_EXPIRY } = require('../config/jwtConfig');
 const encryptHelper = require('../utils/encryptHelper');
@@ -72,69 +73,94 @@ exports.validateToken = async (req, res) => {
       return res.status(500).json({ valid: false, message: 'An error occurred while validating the token.', error: err.message });
     }
   };
+
+  
   exports.register = async (req, res) => {
-    try {
-        const { email, password, role, phone_number, name, departments, subjects } = req.body;
-        const validationErrors = [];
-
-        if (!email) validationErrors.push('Email is required.');
-        if (!password) validationErrors.push('Password is required.');
-        if (!role) validationErrors.push('Role is required.');
-        if (!name) validationErrors.push('Name is required.');
-
-        if (validationErrors.length > 0) {
-            return res.status(400).json({ message: validationErrors.join(' ') });
-        }
-
-        if (!encryptHelper.isValidEmail(email)) {
-            return res.status(400).json({ message: 'Invalid email address.' });
-        }
-
-        const allowedRoles = ['admin', 'student', 'instructor'];
-        if (!allowedRoles.includes(role)) {
-            return res.status(400).json({ message: `Role must be one of: ${allowedRoles.join(', ')}` });
-        }
-
-        // Validate departments and subjects as optional fields
-        const finalDepartments = Array.isArray(departments) ? departments.join(", ") : ""; // Convert to comma-separated string
-        const finalSubjects = Array.isArray(subjects) ? subjects.join(", ") : "";  // Convert to comma-separated string
-
-        let status = 'pending';  // Default status
-        if (role === 'admin' || role === 'student') {
-            status = 'approved';  // Set to approved for admin and student roles
-        }
-
-        const hashedPassword = await bcrypt.hash(password, 12);
-        const user = new User({
-            email,
-            password: hashedPassword,
-            role,
-            phone_number,
-            name,
-            departments: finalDepartments,  // Save as string
-            subjects: finalSubjects,        // Save as string
-            status  // Set the status based on the role
-        });
-
-        await user.save();
-
-        res.status(201).json({
-            message: 'User registered successfully.',
-            user: {
-                id: user._id,
-                email: user.email,
-                name: user.name,
-                status: user.status  // Include status in the response
+      try {
+          const { email, password, role, phone_number, name, departments, subjects } = req.body;
+          const validationErrors = [];
+  
+          if (!email) validationErrors.push('Email is required.');
+          if (!password) validationErrors.push('Password is required.');
+          if (!role) validationErrors.push('Role is required.');
+          if (!name) validationErrors.push('Name is required.');
+  
+          if (validationErrors.length > 0) {
+              return res.status(400).json({ message: validationErrors.join(' ') });
+          }
+  
+          if (!encryptHelper.isValidEmail(email)) {
+              return res.status(400).json({ message: 'Invalid email address.' });
+          }
+  
+          const allowedRoles = ['admin', 'student', 'instructor'];
+          if (!allowedRoles.includes(role)) {
+              return res.status(400).json({ message: `Role must be one of: ${allowedRoles.join(', ')}` });
+          }
+  
+          // Validate departments and subjects as optional fields
+          const finalDepartments = Array.isArray(departments) ? departments.join(", ") : ""; // Convert to comma-separated string
+          const finalSubjects = Array.isArray(subjects) ? subjects.join(", ") : "";  // Convert to comma-separated string
+  
+          let status = 'pending';  // Default status
+          if (role === 'admin' || role === 'student') {
+              status = 'approved';  // Set to approved for admin and student roles
+          }
+  
+          const hashedPassword = await bcrypt.hash(password, 12);
+          const user = new User({
+              email,
+              password: hashedPassword,
+              role,
+              phone_number,
+              name,
+              departments: finalDepartments,  // Save as string
+              subjects: finalSubjects,        // Save as string
+              status  // Set the status based on the role
+          });
+  
+          await user.save();
+  
+          // Send a notification if the user is an instructor or student
+          if (role === 'instructor' || role === 'student') {
+            // Send notifications to all admins
+            const admins = await User.find({ role: 'admin' });
+            for (const admin of admins) {
+                const adminNotification = new Notification({
+                    type: 'new_user_registration',
+                    notifiable_type: 'Admin',
+                    notifiable_id: admin._id,
+                    data: {
+                        message: `A new ${role} has been registered: ${user.name} (${user.email})`
+                    },
+                    read_at: null,
+                    created_at: new Date(),
+                    updated_at: new Date()
+                });
+                await adminNotification.save();
             }
-        });
-    } catch (err) {
-        if (err.code === 11000) {
-            const duplicateField = Object.keys(err.keyValue)[0];
-            return res.status(409).json({ message: `${duplicateField} is already in use.` });
         }
-        res.status(500).json({ message: 'Error registering user.', error: err.message });
-    }
-};
+        
+  
+          res.status(201).json({
+              message: 'User registered successfully.',
+              user: {
+                  id: user._id,
+                  email: user.email,
+                  name: user.name,
+                  status: user.status  // Include status in the response
+              }
+          });
+      } catch (err) {
+          if (err.code === 11000) {
+              const duplicateField = Object.keys(err.keyValue)[0];
+              return res.status(409).json({ message: `${duplicateField} is already in use.` });
+          }
+          res.status(500).json({ message: 'Error registering user.', error: err.message });
+      }
+  };
+  
+
 
 
 
