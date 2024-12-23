@@ -20,26 +20,17 @@ const liveClassRoutes = require('./routes/liveClassRoutes');  // New route for l
 // Initialize app and server
 const app = express();
 const server = http.createServer(app);
+const io = socketIo(server);
 
 // CORS configuration
 const corsOptions = {
-  origin: process.env.ALLOWED_ORIGIN || 'http://localhost:3002',  // Frontend URL
+  origin: process.env.ALLOWED_ORIGIN || 'http://localhost:3000',  // Default to frontend URL
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,  // Allow credentials (cookies, authorization headers)
 };
 
-app.use(cors(corsOptions));  // Apply CORS middleware for HTTP requests
-
-// WebSocket setup with CORS
-const io = socketIo(server, {
-  cors: {
-    origin: process.env.ALLOWED_ORIGIN || 'http://localhost:3002',  // Frontend URL for WebSocket
-    methods: ['GET', 'POST'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-    credentials: true,  // Allow credentials (cookies, authorization headers)
-  }
-});
+app.use(cors(corsOptions));  // Apply CORS middleware
 
 // Middleware to parse JSON requests
 app.use(express.json());
