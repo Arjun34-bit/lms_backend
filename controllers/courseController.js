@@ -106,25 +106,22 @@ const getCoursesByToken = async (req, res) => {
     const userId = req.user.id;
     console.log('Authenticated User ID:', userId);
 
-    // Fetch courses for the given instructor
-    const courses = await Course.find({ instructor_id: new mongoose.Types.ObjectId(userId) })
+    // Fetch courses for the given instructor using user ID as string
+    const courses = await Course.find({ instructor_id: userId })
       .populate('instructor_id', 'name email')
       .exec();
     console.log('Courses with populated instructor:', courses);
 
     if (!courses || courses.length === 0) {
-      console.log('No courses found for this instructor, fetching other courses...');
+      console.log('No courses found for this instructor.');
 
-      // If no courses found for this instructor, fetch all courses (or you can apply your desired filter)
-      const allCourses = await Course.find().populate('instructor_id', 'name email');
-      
+      // Return a response indicating no courses found
       return res.status(404).json({
         message: 'No courses found for this instructor',
         user_details: {
           user_id: userId,
         },
-        additional_info: 'Please verify the instructor_id in your courses and make sure the courses are correctly assigned.',
-        other_courses: allCourses,  // Send other courses as well
+        additional_info: 'Please verify the instructor_id in your courses and make sure the courses are correctly assigned.'
       });
     }
 
@@ -139,7 +136,7 @@ const getCoursesByToken = async (req, res) => {
 
     // Ensure that the instructor_id in the course data matches the user data
     const instructorMatches = courses.every(course => 
-      String(course.instructor_id._id) === String(userId)
+      String(course.instructor_id._id) === userId
     );
 
     if (!instructorMatches) {
@@ -165,6 +162,9 @@ const getCoursesByToken = async (req, res) => {
     });
   }
 };
+
+
+
 
 
 const getCourseById = async (req, res) => {

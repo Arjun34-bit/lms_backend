@@ -1,17 +1,80 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const ms = require('ms');
+const mongoose = require('mongoose');
+
 const User = require('../models/userModel');
 const Notification = require('../models/notificationModel');
 const Token = require('../models/tokenModel');
 const { JWT_SECRET, TOKEN_EXPIRY } = require('../config/jwtConfig');
 const encryptHelper = require('../utils/encryptHelper');
 const admin = require('firebase-admin');
+const Department = require('../models/Department'); // Import Department model
+const Subject = require('../models/Subject'); // Import Subject model
 const serviceAccount = require('../config/firebaseServiceAccountKey.json');
 
 admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
 });
+
+exports.getUserProfile = async (req, res) => {
+    try {
+        const { userId } = req.params;
+
+        // Fetch user and exclude unnecessary fields
+        const user = await User.findById(userId)
+            .lean()
+            .select('email name role phone_number status departments subjects address googleId facebookId appleId createdAt');
+
+        if (!user) {
+            return res.status(404).json({ message: 'User not found.' });
+        }
+
+        // Fetch the departments and subjects by their IDs
+        const departmentIds = user.departments.split(',').map(id => new mongoose.Types.ObjectId(id));
+        const subjectIds = user.subjects.split(',').map(id => new mongoose.Types.ObjectId(id));
+
+        const departments = await Department.find({
+            '_id': { $in: departmentIds }
+        }).select('_id name'); // Include both _id and name
+
+        const subjects = await Subject.find({
+            '_id': { $in: subjectIds }
+        })
+            .populate('department_id', '_id name') // Populate department details
+            .select('_id name code description department_id'); // Include relevant fields
+
+        // Map the fetched departments' details
+        const departmentDetails = departments.map(department => ({
+            id: department._id,
+            name: department.name
+        }));
+
+        // Map the fetched subjects' details with their associated department details
+        const subjectDetails = subjects.map(subject => ({
+            id: subject._id,
+            name: subject.name,
+            code: subject.code,
+            description: subject.description,
+            department: subject.department_id
+                ? { id: subject.department_id._id, name: subject.department_id.name }
+                : null
+        }));
+
+        // Return the user profile with resolved department and subject details
+        res.status(200).json({
+            message: 'User profile fetched successfully.',
+            user: {
+                ...user,
+                departments: departmentDetails,
+                subjects: subjectDetails
+            }
+        });
+    } catch (err) {
+        console.error('Error fetching user profile: ', err.message);
+        res.status(500).json({ message: 'Error fetching user profile.', error: err.message });
+    }
+};
 
 exports.validateToken = async (req, res) => {
     try {
@@ -165,43 +228,69 @@ exports.validateToken = async (req, res) => {
 
 
 
-exports.login = async (req, res) => {
+  exports.login = async (req, res) => {
     try {
         const { email, password } = req.body;
 
+        // Validate input
         if (!email || !password) {
             return res.status(400).json({ message: 'Email and password are required.' });
         }
 
-        const user = await User.findOne({ email });
+        // Perform a case-insensitive search for the email
+        const user = await User.findOne({
+            email: { $regex: new RegExp(`^${email}$`, 'i') }, // Case-insensitive match
+        });
+
+        // Check if user exists
         if (!user) {
             return res.status(404).json({ message: 'User not found.' });
         }
 
-        // Check if user status is approved
+        // Check if the user is approved
         if (user.status !== 'approved') {
-            return res.status(403).json({ message: 'User account is not approved. Please contact support.' });
+            return res.status(403).json({
+                message: 'User account is not approved. Please contact support.',
+            });
         }
 
+        // Verify the password
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
             return res.status(401).json({ message: 'Invalid credentials.' });
         }
 
-        const token = jwt.sign({ id: user._id, role: user.role }, JWT_SECRET, { expiresIn: ms(TOKEN_EXPIRY) / 1000 });
+        // Generate a JWT token
+        const token = jwt.sign(
+            { id: user._id, role: user.role },
+            JWT_SECRET,
+            { expiresIn: ms(TOKEN_EXPIRY) / 1000 }
+        );
+
+        // Calculate the expiration time
         const expiresAt = new Date();
         expiresAt.setSeconds(expiresAt.getSeconds() + ms(TOKEN_EXPIRY) / 1000);
 
+        // Save the token in the database
         await Token.create({
             tokenable: user._id,
             name: user.email,
             token,
-            expires_at: expiresAt
+            expires_at: expiresAt,
         });
 
-        res.status(200).json({ message: 'Login successful.', token, expiresAt });
+        // Respond with success
+        res.status(200).json({
+            message: 'Login successful.',
+            token,
+            expiresAt,
+        });
     } catch (err) {
-        res.status(500).json({ message: 'Error logging in.', error: err.message });
+        console.error('Error logging in:', err);
+        res.status(500).json({
+            message: 'Error logging in.',
+            error: err.message,
+        });
     }
 };
 

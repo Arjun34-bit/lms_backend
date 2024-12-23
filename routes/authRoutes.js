@@ -5,7 +5,11 @@ const {
     login,
     updateEmail,
     linkSocialAccount,
+    getUserProfile,
+    
+   
     unlinkSocialAccount
+    // Add more routes here...
 } = require('../controllers/authController');
 const authMiddleware = require('../middlewares/authMiddleware');
 
@@ -16,6 +20,7 @@ router.post('/register', register);
 
 // User login and get token
 router.post('/login', login);
+router.get('/users/:userId', authMiddleware.verifyToken, getUserProfile);
 
 // Validate token with authentication middleware
 router.post('/validate-token', authMiddleware.verifyToken, validateToken);

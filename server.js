@@ -11,6 +11,8 @@ const notificationRoutes = require('./routes/notificationRoutes');
 const courseRoutes = require('./routes/courseRoutes');
 const advertisementRoutes = require('./routes/advertisementRoutes');
 const cartRoutes = require('./routes/cartRoutes');
+const languageRoutes = require('./routes/languageRoutes');
+const categoryRoutes = require('./routes/categoryRoutes');
 const wishlistRoutes = require('./routes/wishlistRoutes');
 const transactionRoutes = require('./routes/transactionRoutes');
 const libraryNoteRoutes = require('./routes/libraryNoteRoutes');
@@ -82,6 +84,8 @@ io.on('connection', (socket) => {
 
 // API routes
 app.use('/api/auth', authRoutes);
+app.use('/api/category',categoryRoutes);
+app.use('/api', languageRoutes);
 app.use('/api/departments', departmentRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/courses', courseRoutes);
