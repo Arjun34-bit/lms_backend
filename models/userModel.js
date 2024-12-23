@@ -13,7 +13,16 @@ const userSchema = new mongoose.Schema({
         unique: true,
         validate: [validator.isEmail, 'Invalid email address']
     },
-    password: { type: String, required: true },
+    password: { 
+        type: String, 
+        required: true 
+    },
+    departments: { 
+        type: String    
+    },
+    subjects: { 
+        type: String    
+    },
     role: { 
         type: String, 
         required: true,
@@ -28,25 +37,50 @@ const userSchema = new mongoose.Schema({
             }
         }
     },
+    status: { 
+        type: String, 
+        required: true,
+        enum: ['approved', 'pending'], 
+        default: 'pending' // Default status for most roles
+    },
     phone_number: {
         type: String,
         unique: true,
-        sparse: true
+        sparse: true,
+        validate: [validator.isMobilePhone, 'Invalid phone number']
     },
-    address: { type: String },
-    name: { type: String, required: true },
-    googleId: { type: String, unique: true, sparse: true },
-    facebookId: { type: String, unique: true, sparse: true },
-    appleId: { type: String, unique: true, sparse: true }
+    address: { 
+        type: String 
+    },
+    name: { 
+        type: String, 
+        required: true 
+    },
+    googleId: { 
+        type: String, 
+        unique: true, 
+        sparse: true 
+    },
+    facebookId: { 
+        type: String, 
+        unique: true, 
+        sparse: true 
+    },
+    appleId: { 
+        type: String, 
+        unique: true, 
+        sparse: true 
+    }
 }, {
     timestamps: true
 });
 
-
+// Static method to get the list of valid roles
 userSchema.statics.roles = function() {
     return [ROLE_ADMIN, ROLE_USER, ROLE_STUDENT, ROLE_INSTRUCTOR];
 };
 
+// Method to set the user's role
 userSchema.methods.setRole = function(value) {
     const validRoles = this.constructor.roles();
     if (!validRoles.includes(value)) {
@@ -56,4 +90,3 @@ userSchema.methods.setRole = function(value) {
 };
 
 module.exports = mongoose.model('User', userSchema);
-

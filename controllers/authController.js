@@ -72,9 +72,9 @@ exports.validateToken = async (req, res) => {
       return res.status(500).json({ valid: false, message: 'An error occurred while validating the token.', error: err.message });
     }
   };
-exports.register = async (req, res) => {
+  exports.register = async (req, res) => {
     try {
-        const { email, password, role, phone_number, name } = req.body;
+        const { email, password, role, phone_number, name, departments, subjects } = req.body;
         const validationErrors = [];
 
         if (!email) validationErrors.push('Email is required.');
@@ -95,11 +95,38 @@ exports.register = async (req, res) => {
             return res.status(400).json({ message: `Role must be one of: ${allowedRoles.join(', ')}` });
         }
 
+        // Validate departments and subjects as optional fields
+        const finalDepartments = Array.isArray(departments) ? departments.join(", ") : ""; // Convert to comma-separated string
+        const finalSubjects = Array.isArray(subjects) ? subjects.join(", ") : "";  // Convert to comma-separated string
+
+        let status = 'pending';  // Default status
+        if (role === 'admin' || role === 'student') {
+            status = 'approved';  // Set to approved for admin and student roles
+        }
+
         const hashedPassword = await bcrypt.hash(password, 12);
-        const user = new User({ email, password: hashedPassword, role, phone_number, name });
+        const user = new User({
+            email,
+            password: hashedPassword,
+            role,
+            phone_number,
+            name,
+            departments: finalDepartments,  // Save as string
+            subjects: finalSubjects,        // Save as string
+            status  // Set the status based on the role
+        });
+
         await user.save();
 
-        res.status(201).json({ message: 'User registered successfully.', user: { id: user._id, email: user.email, name: user.name } });
+        res.status(201).json({
+            message: 'User registered successfully.',
+            user: {
+                id: user._id,
+                email: user.email,
+                name: user.name,
+                status: user.status  // Include status in the response
+            }
+        });
     } catch (err) {
         if (err.code === 11000) {
             const duplicateField = Object.keys(err.keyValue)[0];
@@ -108,6 +135,9 @@ exports.register = async (req, res) => {
         res.status(500).json({ message: 'Error registering user.', error: err.message });
     }
 };
+
+
+
 
 exports.login = async (req, res) => {
     try {
@@ -120,6 +150,11 @@ exports.login = async (req, res) => {
         const user = await User.findOne({ email });
         if (!user) {
             return res.status(404).json({ message: 'User not found.' });
+        }
+
+        // Check if user status is approved
+        if (user.status !== 'approved') {
+            return res.status(403).json({ message: 'User account is not approved. Please contact support.' });
         }
 
         const isMatch = await bcrypt.compare(password, user.password);
@@ -143,6 +178,7 @@ exports.login = async (req, res) => {
         res.status(500).json({ message: 'Error logging in.', error: err.message });
     }
 };
+
 
 exports.updateEmail = async (req, res) => {
     try {

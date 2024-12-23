@@ -15,6 +15,7 @@ const wishlistRoutes = require('./routes/wishlistRoutes');
 const transactionRoutes = require('./routes/transactionRoutes');
 const libraryNoteRoutes = require('./routes/libraryNoteRoutes');
 const quickLearningVideoRoutes = require('./routes/quickLearningVideoRoutes');
+const departmentRoutes = require('./routes/departmentRoutes');
 const liveClassRoutes = require('./routes/liveClassRoutes');  // New route for live classes
 
 // Initialize app and server
@@ -81,6 +82,7 @@ io.on('connection', (socket) => {
 
 // API routes
 app.use('/api/auth', authRoutes);
+app.use('/api/departments', departmentRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/courses', courseRoutes);
 app.use('/api/advertisements', advertisementRoutes);

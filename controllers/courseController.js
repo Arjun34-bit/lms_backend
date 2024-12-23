@@ -1,12 +1,10 @@
 const { validationResult } = require('express-validator');
 const AWS = require('aws-sdk');
-const Course = require('../models/courseModel');
-const { uploadToS3 } = require('../utils/fileUpload'); 
 const mongoose = require('mongoose');
-
+const Course = require('../models/courseModel');
 const User = require('../models/userModel');
 const Notification = require('../models/notificationModel');
-
+const { uploadToS3 } = require('../utils/fileUpload');
 
 // Initialize AWS S3 client
 const s3Client = new AWS.S3({
@@ -16,6 +14,7 @@ const s3Client = new AWS.S3({
   secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
   s3ForcePathStyle: true,
 });
+
 const getSignedUrl = (key) => {
   const params = {
     Bucket: process.env.AWS_BUCKET,
@@ -96,12 +95,77 @@ const createCourse = async (req, res) => {
 // Controller Methods
 const getCourses = async (req, res) => {
   try {
-    const courses = await Course.find({ status: 'published' }).populate('instructor_id', 'name email');
+    const courses = await Course.find({ status: 'pending' }).populate('instructor_id', 'name email');
     return res.status(200).json({ message: 'Courses fetched successfully', courses });
   } catch (error) {
     return res.status(500).json({ message: 'Error fetching courses', error: error.message });
   }
 };
+const getCoursesByToken = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    console.log('Authenticated User ID:', userId);
+
+    // Fetch courses for the given instructor
+    const courses = await Course.find({ instructor_id: new mongoose.Types.ObjectId(userId) })
+      .populate('instructor_id', 'name email')
+      .exec();
+    console.log('Courses with populated instructor:', courses);
+
+    if (!courses || courses.length === 0) {
+      console.log('No courses found for this instructor, fetching other courses...');
+
+      // If no courses found for this instructor, fetch all courses (or you can apply your desired filter)
+      const allCourses = await Course.find().populate('instructor_id', 'name email');
+      
+      return res.status(404).json({
+        message: 'No courses found for this instructor',
+        user_details: {
+          user_id: userId,
+        },
+        additional_info: 'Please verify the instructor_id in your courses and make sure the courses are correctly assigned.',
+        other_courses: allCourses,  // Send other courses as well
+      });
+    }
+
+    // Fetch user details to verify instructor
+    const user = await User.findById(userId).select('name email');
+    if (!user) {
+      return res.status(404).json({
+        message: 'Instructor not found in users table',
+        user_id: userId,
+      });
+    }
+
+    // Ensure that the instructor_id in the course data matches the user data
+    const instructorMatches = courses.every(course => 
+      String(course.instructor_id._id) === String(userId)
+    );
+
+    if (!instructorMatches) {
+      return res.status(400).json({
+        message: 'Instructor ID mismatch between courses and users table',
+        user_details: {
+          user_id: userId,
+          name: user.name,
+          email: user.email,
+        },
+      });
+    }
+
+    return res.status(200).json({
+      message: 'Courses fetched successfully',
+      courses,
+    });
+  } catch (error) {
+    console.error('Error fetching courses:', error);
+    return res.status(500).json({
+      message: 'Error fetching courses',
+      error: error.message,
+    });
+  }
+};
+
 
 const getCourseById = async (req, res) => {
   try {
@@ -145,4 +209,5 @@ module.exports = {
   createCourse,
   updateCourse,
   deleteCourse,
+  getCoursesByToken,
 };

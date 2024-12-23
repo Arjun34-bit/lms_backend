@@ -1,6 +1,6 @@
 const express = require('express');
 const { upload } = require('../utils/fileUpload');  // Import the upload middleware
-const { getCourses, getCourseById, createCourse, updateCourse, deleteCourse } = require('../controllers/courseController');
+const { getCourses, getCourseById, createCourse, updateCourse, deleteCourse ,getCoursesByToken} = require('../controllers/courseController');
 const authMiddleware = require('../middlewares/authMiddleware');
 
 const router = express.Router();
@@ -10,6 +10,7 @@ router.post('/', authMiddleware.verifyToken, upload.single('thumbnail'), createC
 
 // Other course routes...
 router.get('/', authMiddleware.verifyToken, getCourses);
+router.get('/instructor', authMiddleware.verifyToken, getCoursesByToken);
 router.get('/:id', authMiddleware.verifyToken, getCourseById);
 router.put('/:id', authMiddleware.verifyToken, updateCourse);
 router.delete('/:id', authMiddleware.verifyToken, deleteCourse);
