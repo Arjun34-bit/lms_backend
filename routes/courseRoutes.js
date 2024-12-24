@@ -10,6 +10,7 @@ router.post('/', authMiddleware.verifyToken, upload.single('thumbnail'), createC
 
 // Other course routes...
 router.get('/', authMiddleware.verifyToken, getCourses);
+router.post('/store',authMiddleware.verifyToken, createCourse);
 router.get('/instructor', authMiddleware.verifyToken, getCoursesByToken);
 router.get('/:id', authMiddleware.verifyToken, getCourseById);
 router.put('/:id', authMiddleware.verifyToken, updateCourse);

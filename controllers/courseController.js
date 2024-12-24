@@ -3,6 +3,7 @@ const AWS = require('aws-sdk');
 const mongoose = require('mongoose');
 const Course = require('../models/courseModel');
 const User = require('../models/userModel');
+const Category = require('../models/Category');
 const Notification = require('../models/notificationModel');
 const { uploadToS3 } = require('../utils/fileUpload');
 
@@ -45,36 +46,59 @@ const createNotification = async (type, notifiableId, data) => {
 
 const createCourse = async (req, res) => {
   try {
-    const instructorId = req.body.instructor_id || req.user.id; // Get instructor_id from body or token
-    if (!instructorId) {
-      return res.status(400).json({ message: "Instructor ID is missing." });
+    // Log the received data
+    // Log the full request body
+
+    // Validate input fields
+    const { title, description, category_id, department_id, subject_id, level, price, start_date, end_date, duration, live_days, live_time, language, is_free } = req.body;
+
+    // Check for required fields
+    if (!title || !description || !category_id || !department_id || !subject_id || !level) {
+      return res.status(400).json({ message: "Required fields are missing." });
+    }
+
+    // Check if live category exists
+    const liveCategory = await Category.findOne({ name: { $regex: 'live', $options: 'i' } });
+    if (!liveCategory) {
+      return res.status(400).json({ message: "Live category not found." });
     }
 
     // Handle thumbnail upload if a file is provided
     let thumbnailUrl = null;
     if (req.file) {
-      thumbnailUrl = await uploadToS3(req.file);
+      try {
+        thumbnailUrl = await uploadToS3(req.file);  // Assuming this is an S3 upload function
+      } catch (uploadError) {
+        console.error("Error uploading thumbnail to S3:", uploadError);
+        return res.status(500).json({ message: "Failed to upload thumbnail. Please try again." });
+      }
     }
 
+    // Prepare course data for insertion
+    const courseData = {
+      title,
+      description,
+      category_id: category_id,
+      department_id,
+      subject_id,
+      level,
+      price: price ? parseFloat(price) : null,
+      start_date: start_date ? new Date(start_date) : null,
+      end_date: end_date ? new Date(end_date) : null,
+      duration,
+      instructor_id: req.user.id, // Assuming the user is authenticated and their ID is available
+      status: 'pending',
+      created_at: new Date(),
+      updated_at: new Date(),
+      live_days: Array.isArray(live_days) ? JSON.stringify(live_days) : null,
+      live_time: category_id === liveCategory._id ? live_time : null,
+      language: language || null,
+      is_free: is_free !== undefined ? Boolean(is_free) : false,
+      thumbnail: thumbnailUrl,
+    };
+
     // Create the course document
-    const course = new Course({
-      title: req.body.title,
-      description: req.body.description,
-      instructor_id: instructorId,
-      category: req.body.category,
-      type: req.body.type,
-      level: req.body.level,
-      duration: req.body.duration,
-      price: req.body.price,
-      status: req.body.status,
-      metadata: {
-        rating: req.body["metadata.rating"] || 0,
-        enrolled: req.body["metadata.enrolled"] || 0,
-        language: req.body["metadata.language"] || "English",
-      },
-      thumbnail: thumbnailUrl, // Store the S3 URL of the uploaded thumbnail
-      bestseller: req.body.bestseller || false,
-    });
+    const course = new Course(courseData);
 
     // Save to the database
     await course.save();
@@ -86,13 +110,27 @@ const createCourse = async (req, res) => {
     });
   } catch (err) {
     console.error("Error creating course:", err);
+
+    // Log the error to a file or external logging service for better tracking
+    const fs = require('fs');
+    const errorMessage = err.message || "An error occurred while creating the course. Please try again.";
+    
+    // Create an error log entry with the timestamp and error stack trace
+    const logMessage = `[${new Date().toISOString()}] Error creating course: ${errorMessage}\n${err.stack}\n\n`;
+
+    // Append the error to a file (error.log)
+    fs.appendFileSync('error.log', logMessage);
+
     res.status(500).json({
-      message: "An error occurred while creating the course. Please try again.",
+      message: errorMessage,
+      error: err.stack, // This will give more detailed error information (e.g., stack trace) for debugging
     });
   }
 };
 
-// Controller Methods
+
+
+
 const getCourses = async (req, res) => {
   try {
     const courses = await Course.find({ status: 'pending' }).populate('instructor_id', 'name email');
@@ -101,6 +139,7 @@ const getCourses = async (req, res) => {
     return res.status(500).json({ message: 'Error fetching courses', error: error.message });
   }
 };
+
 const getCoursesByToken = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -162,10 +201,6 @@ const getCoursesByToken = async (req, res) => {
     });
   }
 };
-
-
-
-
 
 const getCourseById = async (req, res) => {
   try {
