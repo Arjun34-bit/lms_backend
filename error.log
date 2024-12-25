@@ -11,3 +11,16 @@ ReferenceError: Category is not defined
     at C:\Users\dell\pcc_backend\node_modules\express\lib\router\index.js:284:15
     at Function.process_params (C:\Users\dell\pcc_backend\node_modules\express\lib\router\index.js:346:12)
 
+[2024-12-24T12:48:03.269Z] Error creating course: Cannot set headers after they are sent to the client
+Error [ERR_HTTP_HEADERS_SENT]: Cannot set headers after they are sent to the client
+    at new NodeError (node:internal/errors:372:5)
+    at ServerResponse.setHeader (node:_http_outgoing:576:11)
+    at ServerResponse.header (C:\Users\dell\pcc_backend\node_modules\express\lib\response.js:794:10)
+    at ServerResponse.send (C:\Users\dell\pcc_backend\node_modules\express\lib\response.js:174:12)
+    at ServerResponse.json (C:\Users\dell\pcc_backend\node_modules\express\lib\response.js:278:15)
+    at createCourse (C:\Users\dell\pcc_backend\controllers\courseController.js:46:30)
+    at Layer.handle [as handle_request] (C:\Users\dell\pcc_backend\node_modules\express\lib\router\layer.js:95:5)
+    at next (C:\Users\dell\pcc_backend\node_modules\express\lib\router\route.js:149:13)
+    at verifyToken (C:\Users\dell\pcc_backend\middlewares\authMiddleware.js:20:9)
+    at Layer.handle [as handle_request] (C:\Users\dell\pcc_backend\node_modules\express\lib\router\layer.js:95:5)
+

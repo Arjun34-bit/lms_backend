@@ -41,29 +41,11 @@ courseSchema.virtual('instructor', {
   justOne: true
 });
 
-courseSchema.virtual('sections', {
-  ref: 'CourseSection',
-  localField: '_id',
-  foreignField: 'course_id'
-});
 
-courseSchema.virtual('enrollments', {
-  ref: 'CourseEnrollment',
-  localField: '_id',
-  foreignField: 'course_id'
-});
 
-courseSchema.virtual('materials', {
-  ref: 'CourseMaterial',
-  localField: '_id',
-  foreignField: 'course_id'
-});
 
-courseSchema.virtual('progress', {
-  ref: 'CourseProgress',
-  localField: '_id',
-  foreignField: 'course_id'
-});
+
+
 
 // Default attribute values & Mutators
 courseSchema.pre('save', function(next) {
