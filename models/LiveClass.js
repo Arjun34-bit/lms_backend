@@ -5,6 +5,11 @@ const liveClassSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  course: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Course',
+    required: true,
+  },
   instructor: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',

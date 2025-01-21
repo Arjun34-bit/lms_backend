@@ -7,6 +7,9 @@ const libraryNoteSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  description: {
+    type: String,
+  },
   course_id: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Course',  // Assuming you have a Course model
