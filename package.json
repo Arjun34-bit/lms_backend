@@ -24,6 +24,7 @@
     "firebase-admin": "^13.0.1",
     "geoip-lite": "^1.4.10",
     "http": "^0.0.1-security",
+    "ioredis": "^5.4.2",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.9.0",
     "ms": "^2.1.3",
