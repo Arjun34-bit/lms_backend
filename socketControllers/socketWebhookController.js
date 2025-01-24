@@ -17,60 +17,44 @@ exports.socketWebhookController = (server) => {
     console.log("A user connected:", socket.id);
 
     // Handle the instructor connection
-    socket.on("joinInstructor", async ({ classId }) => {
-      await redis.set(`instructor:${classId}`, socket.id);
-      socket.join(classId);
-
-      io.to(socket.id).emit("joinInstructorResponse", {
-        message: `You have joined the class ${classId}`,
-      });
+    socket.on("joinInstructor", async ({ classId, role }) => {
+      if (role === "instructor") {
+        await redis.set(`instructor:${classId}`, socket.id);
+        socket.join(classId);
+        console.log(classId, "classId");
+        io.to(socket.id).emit("joinInstructorResponse", {
+          message: `You have joined the class ${classId}`,
+          classId,
+        });
+      }
     });
 
     // When a student tries to join the meeting
-    socket.on("joinMeetingRequest", async (data) => {
+    socket.on("joinStudent", async (data) => {
       const { userId, name, role, classId } = data;
-
       // If student, notify teacher for approval
       if (role === "student") {
         await redis.hset(
-          `pendingStudents:${classId}`,
+          `student:${classId}`,
           userId,
           JSON.stringify({ name, socketId: socket.id })
         );
-
-        // Notify the instructor of this class
-        const instructorSocketId = await redis.get(`instructor:${classId}`);
-        if (instructorSocketId) {
-          io.to(instructorSocketId).emit("studentJoinRequest", {
-            name,
-            classId,
-            userId,
-          });
-        }
+        socket.join(classId);
+        console.log(`studentId: ${userId} has joined`);
+        // Notify student's join to class room
+        io.to(classId).emit("joinStudentResponse", {
+          message: `${name} have joined the class.`,
+          classId,
+          studentSocketId: socket?.id,
+        });
       }
     });
 
-    // for handeling students join request approval
-    socket.on("approveStudent", async ({ studentId, classId }) => {
-      // Get student details from Redis
-      const studentData = await redis.hget(
-        `pendingStudents:${classId}`,
-        studentId
-      );
-      if (studentData) {
-        const { name, socketId } = JSON.parse(studentData);
-
-        // Notify the student that they are approved
-        io.to(socketId).emit("studentApproved", {
-          message: `You are approved to join class ${classId}`,
-        });
-
-        // Remove the student from pending list in Redis
-        await redis.hdel(`pendingStudents:${classId}`, studentId);
-
-        // Broadcast to the class that the student has joined
-        io.to(classId).emit("userJoined", { name, classId });
-      }
+    // exchange video steams
+    socket.on("signal", (data) => {
+      const { userId, signal } = data;
+      // Broadcast the signal to the specific user
+      socket.to(userId).emit("signal", { userId: socket.id, signal });
     });
 
     // Handle disconnection
@@ -88,8 +72,8 @@ exports.socketWebhookController = (server) => {
         }
       }
 
-      // Check if the disconnected user is a pending student
-      const classKeys = await redis.keys("pendingStudents:*");
+      // Check if the disconnected user is a student
+      const classKeys = await redis.keys("students:*");
       for (const classKey of classKeys) {
         const students = await redis.hgetall(classKey);
         for (const [studentId, studentData] of Object.entries(students)) {
