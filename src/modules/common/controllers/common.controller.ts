@@ -1,0 +1,54 @@
+import { Controller, Get, Query } from '@nestjs/common';
+import { ApiUtilsService } from '@utils/utils.service';
+import { CommonService } from '../services/common.service';
+import { ApiPaginationResponseT, ApiResponseT } from '@utils/types';
+import { SubjectFilterDto } from '../dtos/subjectFilter.dto';
+import { PaginationDto } from 'src/common/dtos/pagination.dto';
+import { CourseFilterDto } from '../dtos/courseFilter.dto';
+
+@Controller('common')
+export class CommonController {
+  constructor(
+    private readonly commonService: CommonService,
+    private readonly apiUtilsSevice: ApiUtilsService,
+  ) {}
+
+  @Get('languages')
+  async getLanguages(): Promise<ApiResponseT> {
+    const data = await this.commonService.getLanguages();
+    return this.apiUtilsSevice.make_response(data);
+  }
+
+  @Get('departments')
+  async getDepartments(): Promise<ApiResponseT> {
+    const data = await this.commonService.getDepartments();
+    return this.apiUtilsSevice.make_response(data);
+  }
+
+  @Get('subjects')
+  async getSubjects(
+    @Query() queryDto: SubjectFilterDto,
+  ): Promise<ApiResponseT> {
+    const data = await this.commonService.getSubjects(queryDto);
+    return this.apiUtilsSevice.make_response(data);
+  }
+
+  @Get('categories')
+  async getCategories(): Promise<ApiResponseT> {
+    const data = await this.commonService.getCategories();
+    return this.apiUtilsSevice.make_response(data);
+  }
+
+  @Get('courses')
+  async getCourses(
+    @Query() queryDto: PaginationDto,
+    @Query() filterDto: CourseFilterDto,
+  ): Promise<ApiPaginationResponseT> {
+    const data = await this.commonService.getCourses(queryDto, filterDto);
+    return this.apiUtilsSevice.make_pagination_response(
+      data.courses,
+      data.totalCount,
+      data.limit,
+    );
+  }
+}

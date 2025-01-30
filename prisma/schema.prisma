@@ -1,0 +1,320 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("MONGO_URI")
+}
+
+enum RoleEnum {
+  admin
+  student
+  instructor
+}
+
+enum CourseLevelEnum {
+  Begineer
+  Intermediate
+  Advanced
+}
+
+enum AdminApprovalEnum {
+  pending
+  approved
+  declined
+}
+
+enum PaymentStatusEnum {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+model Department {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String   @unique @map("department_name")
+  description String?  @map("department_description")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  subjects    Subject[]
+  instructors Instructor[]
+  courses     Course[]
+}
+
+model Subject {
+  id           String     @id @default(auto()) @map("_id") @db.ObjectId
+  name         String     @map("subject_name")
+  description  String?    @map("subject_description")
+  department   Department @relation(fields: [departmentId], references: [id])
+  departmentId String     @db.ObjectId
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  instructorSubject InstructorSubject[]
+  courses           Course[]
+}
+
+model Category {
+  id          String  @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  description String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  courses   Course[]
+}
+
+model Language {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  name      String   @map("language_name")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  courses   Course[]
+}
+
+model User {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  firebaseUid String?
+  role        RoleEnum @map("role")
+  name        String
+  email       String?  @unique
+  phoneNumber String?  @map("phone_number")
+  password    String?
+  verified    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  admin                Admin?
+  instructor           Instructor?
+  student              Student?
+  addedCourses         Course[]       @relation("AddedCourses")
+  scheduledLiveClasses LiveClass[]    @relation("ScheduledClasses")
+  notifications        Notification[]
+}
+
+model Admin {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String   @unique @db.ObjectId
+  address   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Instructor {
+  id             String            @id @default(auto()) @map("_id") @db.ObjectId
+  user           User              @relation(fields: [userId], references: [id])
+  userId         String            @unique @db.ObjectId
+  department     Department?       @relation(fields: [departmentId], references: [id])
+  departmentId   String?           @db.ObjectId
+  approvalStatus AdminApprovalEnum @default(pending)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  liveClasses                LiveClass[]
+  instructorSubjects         InstructorSubject[]
+  InstructorAssignedToCourse InstructorAssignedToCourse[]
+}
+
+model InstructorSubject {
+  id           String     @id @default(auto()) @map("_id") @db.ObjectId
+  instructor   Instructor @relation(fields: [instructorId], references: [id])
+  instructorId String     @db.ObjectId
+  subject      Subject    @relation(fields: [subjectId], references: [id])
+  subjectId    String     @db.ObjectId
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+model InstructorAssignedToCourse {
+  id           String     @id @default(auto()) @map("_id") @db.ObjectId
+  instructor   Instructor @relation(fields: [instructorId], references: [id])
+  instructorId String     @db.ObjectId
+  course       Course     @relation(fields: [courseId], references: [id])
+  courseId     String     @db.ObjectId
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+model Student {
+  id                    String                  @id @default(auto()) @map("_id") @db.ObjectId
+  user                  User                    @relation(fields: [userId], references: [id])
+  userId                String                  @unique @db.ObjectId
+  address               String?
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+  studentCourseEnrolled StudentCourseEnrolled[]
+  LiveClassAttendance   LiveClassAttendance[]
+  AssignmentSubmitted   AssignmentSubmitted[]
+  TestResult            TestResult[]
+}
+
+model Course {
+  id                      String            @id @default(auto()) @map("_id") @db.ObjectId
+  title                   String
+  level                   CourseLevelEnum
+  description             String?
+  category                Category          @relation(fields: [categoryId], references: [id])
+  categoryId              String            @db.ObjectId
+  startDate               DateTime          @map("start_date")
+  endDate                 DateTime          @map("end_date")
+  department              Department        @relation(fields: [departmentId], references: [id])
+  departmentId            String            @db.ObjectId
+  subject                 Subject           @relation(fields: [subjectId], references: [id])
+  subjectId               String            @db.ObjectId
+  language                Language          @relation(fields: [languageId], references: [id])
+  languageId              String            @db.ObjectId
+  price                   Float
+  thumbnailImageObjectKey String?           @map("thubnail_image_object_key")
+  addedBy                 User?             @relation("AddedCourses", fields: [addedById], references: [id])
+  addedById               String?           @db.ObjectId
+  approvalStatus          AdminApprovalEnum @default(pending)
+  createdAt               DateTime          @default(now())
+  updatedAt               DateTime          @updatedAt
+
+  library                    Library[]
+  liveClasses                LiveClass[]
+  studentCourseEnrolled      StudentCourseEnrolled[]
+  InstructorAssignedToCourse InstructorAssignedToCourse[]
+  Assignment                 Assignment[]
+  TestResult                 TestResult[]
+  Notes                      Notes[]
+  Videos                     Videos[]
+}
+
+model StudentCourseEnrolled {
+  id        String     @id @default(auto()) @map("_id") @db.ObjectId
+  course    Course     @relation(fields: [courseId], references: [id])
+  courseId  String     @db.ObjectId
+  student   Student    @relation(fields: [studentId], references: [id])
+  studentId String     @db.ObjectId
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  courseBuy CourseBuy?
+}
+
+model CourseBuy {
+  id                 String                @id @default(auto()) @map("_id") @db.ObjectId
+  courseEnrolled     StudentCourseEnrolled @relation(fields: [courseEnrollmentId], references: [id])
+  courseEnrollmentId String                @unique @db.ObjectId
+  amount             Float
+  status             PaymentStatusEnum     @default(PENDING)
+  razorpayPaymentId  String                @unique
+  transactionId      String?               @unique
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+}
+
+model LiveClass {
+  id                  String                @id @default(auto()) @map("_id") @db.ObjectId
+  title               String
+  urlLink             String?
+  course              Course                @relation(fields: [courseId], references: [id])
+  courseId            String                @db.ObjectId
+  instructor          Instructor            @relation(fields: [instructorId], references: [id])
+  instructorId        String                @db.ObjectId
+  scheduledBy         User                  @relation("ScheduledClasses", fields: [scheduledById], references: [id])
+  scheduledById       String                @db.ObjectId
+  startTime           DateTime              @map("start_time")
+  endTime             DateTime              @map("end_time")
+  approvalStatus      AdminApprovalEnum     @default(pending)
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  LiveClassAttendance LiveClassAttendance[]
+}
+
+model LiveClassAttendance {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  urlLink     String?
+  liveClassId String    @db.ObjectId
+  liveClass   LiveClass @relation(fields: [liveClassId], references: [id])
+  studentId   String    @db.ObjectId
+  student     Student   @relation(fields: [studentId], references: [id])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Notification {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  type      String
+  isRead    Boolean  @default(false) @map("is_read")
+  message   String
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String   @db.ObjectId
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Library {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  title         String
+  description   String
+  courseId      String   @db.ObjectId
+  course        Course   @relation(fields: [courseId], references: [id])
+  fileObjectKey String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Notes {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  title         String
+  description   String?
+  courseId      String   @db.ObjectId
+  course        Course   @relation(fields: [courseId], references: [id])
+  fileObjectKey String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Videos {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  title         String
+  description   String?
+  courseId      String   @db.ObjectId
+  course        Course   @relation(fields: [courseId], references: [id])
+  fileObjectKey String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Assignment {
+  id                  String                @id @default(auto()) @map("_id") @db.ObjectId
+  title               String
+  description         String?
+  courseId            String                @db.ObjectId
+  course              Course                @relation(fields: [courseId], references: [id])
+  fileObjectKey       String
+  dueDate             DateTime              @map("due_date")
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  AssignmentSubmitted AssignmentSubmitted[]
+}
+
+model AssignmentSubmitted {
+  id            String     @id @default(auto()) @map("_id") @db.ObjectId
+  title         String
+  description   String?
+  studentId     String     @db.ObjectId
+  student       Student    @relation(fields: [studentId], references: [id])
+  assignmentId  String     @db.ObjectId
+  assignment    Assignment @relation(fields: [assignmentId], references: [id])
+  fileObjectKey String
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+}
+
+model TestResult {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  title         String
+  description   String?
+  studentId     String   @db.ObjectId
+  student       Student  @relation(fields: [studentId], references: [id])
+  courseId      String   @db.ObjectId
+  course        Course   @relation(fields: [courseId], references: [id])
+  fileObjectKey String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}

@@ -1,0 +1,33 @@
+import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { ApiUtilsService } from '@utils/utils.service';
+import { CourseService } from '../services/course.service';
+import JwtInstructorAuthGuard from '@modules/instructor/auth/guards/jwt-auth.guard';
+import { CreateCourseDto } from '../dtos/createCourse.dto';
+import { GetUser } from 'src/common/decorators/user.decorator';
+import { InstructorJwtDto } from '@modules/common/dtos/instructor-jwt.dto';
+
+@Controller()
+@UseGuards(JwtInstructorAuthGuard)
+export class CourseController {
+  constructor(
+    private readonly courseService: CourseService,
+    private readonly apiUtilsSevice: ApiUtilsService,
+  ) {}
+
+  @Post()
+  async createCourse(
+    @Body() createCourseDto: CreateCourseDto,
+    @GetUser() user: InstructorJwtDto,
+  ) {
+    const data = await this.courseService.createCourse(createCourseDto, user);
+    return this.apiUtilsSevice.make_response(data);
+  }
+
+  @Get('assigned-courses')
+  async getAssignedCourses(
+    @GetUser() user: InstructorJwtDto
+  ) {
+    const data = await this.courseService.getAssignedCourses(user);
+    return this.apiUtilsSevice.make_response(data);
+  }
+}

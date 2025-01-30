@@ -1,0 +1,245 @@
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { PrismaService } from 'src/prisma/prisma.service';
+import * as bcrypt from 'bcryptjs';
+import { SignUpDto } from '../dto/signup.dto';
+import { JwtService } from '@nestjs/jwt';
+import { LoginDto } from '../dto/login.dto';
+import { RoleEnum } from '@prisma/client';
+import { firebaseAuth } from 'src/config/firebase.config';
+import { envConstant } from '@constants/index';
+
+@Injectable()
+export class AuthService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private jwtService: JwtService,
+  ) {}
+
+  async signupWithEmail(data: SignUpDto) {
+    try {
+      const existingUser = await this.prisma.user.count({
+        where: { email: data.email?.toLowerCase() },
+      });
+
+      if (existingUser) {
+        throw new BadRequestException('Email already exists');
+      }
+
+      const hashedPassword = await bcrypt.hash(data.password, 10);
+
+      const userRecord = await firebaseAuth.createUser({
+        displayName: data.name,
+        email: data.email,
+        emailVerified: false,
+        disabled: false,
+        phoneNumber: data.phoneNumber,
+        password: data.password,
+      });
+
+      // Send verification email
+      const user = await firebaseAuth.getUser(userRecord.uid);
+      let link = await firebaseAuth.generateEmailVerificationLink(user.email);
+      link += `&continueUrl=${envConstant.ALLOWED_ORIGIN}/user-verification/success`
+      console.log(link, 'verification link');
+
+      const createdUser = await this.prisma.user.create({
+        data: {
+          name: data.name,
+          email: data.email?.toLowerCase(),
+          password: hashedPassword,
+          role: RoleEnum.student,
+          firebaseUid: user.uid,
+          student: {
+            create: {},
+          },
+        },
+      });
+
+      const payload = {
+        userId: createdUser.id,
+        name: createdUser.name,
+        email: createdUser.email,
+        role: RoleEnum.student,
+      };
+
+      return payload;
+    } catch (error) {
+      if (error.statusCode === 500) {
+        Logger.error(error?.stack);
+      }
+      throw error;
+    }
+  }
+
+  async loginWithPhoneNumber(idToken: string) {
+    try {
+      const decodedToken = await firebaseAuth.verifyIdToken(idToken);
+      const firebaseUser = await firebaseAuth.getUser(decodedToken.uid);
+
+      let user = await this.prisma.user.findFirst({
+        where: { firebaseUid: firebaseUser.uid },
+      });
+
+      if (!user) {
+        user = await this.prisma.user.create({
+          data: {
+            name: firebaseUser.displayName ?? 'Unknown User',
+            email: firebaseUser.email ?? null,
+            role: RoleEnum.student,
+            firebaseUid: firebaseUser.uid,
+            verified: true,  // Mark as verified
+            student: {
+              create: {},
+            },
+          },
+        });
+      }
+      const student = await this.prisma.student.findUnique({
+        where: {
+          userId: user.id
+        },
+        select: {
+          id: true
+        }
+      })
+      // Payload to return after verification/login/signup
+      const payload = {
+        userId: user.id,
+        name: user.name,
+        email: user.email,
+        role: RoleEnum.student,
+        studentId: student.id,
+      };
+
+      return {
+        access_token: this.jwtService.sign(payload),
+        user: payload,
+      };
+    } catch (error) {
+      if (error.statusCode === 500) {
+        Logger.error(error?.stack);
+      }
+      throw error;
+    }
+  }
+
+  async login({ email, password }: LoginDto) {
+    try {
+      const user = await this.prisma.user.findUnique({
+        where: { email: email.toLowerCase() },
+        include: {
+          student: {
+            select: {
+              id: true,
+            },
+          },
+        },
+      });
+
+      if (!user || !(await bcrypt.compare(password, user.password))) {
+        throw new BadRequestException('Invalid email or password');
+      }
+
+      const fireAuthUser = await firebaseAuth.getUserByEmail(email);
+      if (!fireAuthUser.emailVerified || !user.verified) {
+        throw new BadRequestException(
+          'Email not verified. Please verify before logging in.',
+        );
+      }
+
+      const payload = {
+        userId: user.id,
+        name: user.name,
+        email: user.email,
+        role: RoleEnum.student,
+        studentId: user?.student?.id,
+      };
+
+      return {
+        access_token: this.jwtService.sign(payload),
+        user: payload,
+      };
+    } catch (error) {
+      if (error.statusCode === 500) {
+        Logger.error(error?.stack);
+      }
+      throw error;
+    }
+  }
+
+  async verifyEmail(oobCode: string) {
+    try {
+      if (!oobCode) {
+        throw new BadRequestException('oobCode is missing!');
+      }
+      const user = await firebaseAuth.verifyIdToken(oobCode);
+      console.log(oobCode)
+      if (user.emailVerified) {
+        return { message: 'Email verified successfully' };
+      }
+      throw new BadRequestException('Email not verified.');
+    } catch (error) {
+      console.log(error?.message)
+      throw new BadRequestException('Invalid or expired verification code');
+    }
+  }
+
+  async googleLogin(idToken: string) {
+    try {
+      // Verify the ID token with Firebase Admin SDK
+      const decodedToken = await firebaseAuth.verifyIdToken(idToken);
+      const { email, name, uid } = decodedToken;
+
+      if (!email) {
+        throw new BadRequestException('Invalid Google account');
+      }
+
+      // Check if the user already exists
+      let user: any = await this.prisma.user.findUnique({
+        where: { email },
+        include: {
+          student: {
+            select: {
+              id: true,
+            },
+          },
+        },
+      });
+
+      if (!user) {
+        // If user doesn't exist, create a new user
+        user = await this.prisma.user.create({
+          data: {
+            name: name || 'Google User',
+            email: email.toLowerCase(),
+            firebaseUid: uid,
+            password: null,
+            verified: true,
+            role: RoleEnum.student,
+            student: {
+              create: {},
+            },
+            // googleId: uid, // Save Firebase UID for reference
+          },
+        });
+      }
+
+      // Generate JWT payload
+      const payload = {
+        userId: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        studentId: user?.student?.id,
+      };
+
+      return {
+        access_token: this.jwtService.sign(payload),
+        user: payload,
+      };
+    } catch (error) {
+      Logger.error('Error during Google login: ', error?.stack);
+      throw new BadRequestException('Invalid Google token');
+    }
+  }
+}
