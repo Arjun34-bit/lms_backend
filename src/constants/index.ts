@@ -2,15 +2,19 @@ import * as dotenv from 'dotenv';
 dotenv.config();
 
 export const envConstant = {
-  PORT: Number(process.env.PORT) || 3001,
+  PORT: Number(process.env.PORT) || 8287,
 
-  BASE_URL: process.env.BASE_URL || `http://localhost:3001`,
+  BASE_URL: process.env.BASE_URL || `http://localhost:8287`,
 
-  ALLOWED_ORIGIN: process.env.ALLOWED_ORIGIN || 'http://localhost:3000',
+  CLIENT_BASE_URL: process.env.CLIENT_BASE_URL || 'http://localhost:8289',
+
+  ALLOWED_ORIGIN: process.env.ALLOWED_ORIGIN || 'http://localhost:8289',
 
   MONGO_URI: process.env.MONGO_URI || 'mongodb://localhost:27017/pcc',
 
   REDIS_HOST: process.env.REDIS_HOST || 'localhost',
+  REDIS_PORT: Number(process.env.REDIS_PORT) || 6379,
+  REDIS_DB: Number(process.env.REDIS_DB) || 1,
 
   JWT_SECRET: process.env.JWT_SECRET || '',
   TOKEN_EXPIRY: process.env.TOKEN_EXPIRY || '15d',

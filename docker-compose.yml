@@ -1,0 +1,114 @@
+# version: '3.9'
+
+# services:
+#   mongo1:
+#     image: mongo:latest
+#     container_name: mongo1
+#     restart: always
+#     ports:
+#       - 27017:27017
+#     environment:
+#       MONGO_INITDB_ROOT_USERNAME: admin
+#       MONGO_INITDB_ROOT_PASSWORD: password
+#       MONGO_INITDB_DATABASE: admin
+#     command: [ "mongod", "--replSet", "rs0", "--keyFile", "/etc/mongo/mongodb.key" ]
+#     volumes:
+#       - /host/mongodb/mongo1:/data/db
+#       - ./init-mongo.sh:/docker-entrypoint-initdb.d/init-mongo.sh
+#       - ./mongodb.key:/etc/mongo/mongodb.key
+#     networks:
+#       - mongo-net
+
+#   mongo2:
+#     image: mongo:latest
+#     container_name: mongo2
+#     restart: always
+#     ports:
+#       - 27018:27017
+#     environment:
+#       MONGO_INITDB_ROOT_USERNAME: admin
+#       MONGO_INITDB_ROOT_PASSWORD: password
+#       MONGO_INITDB_DATABASE: admin
+#     command: [ "mongod", "--replSet", "rs0", "--keyFile", "/etc/mongo/mongodb.key" ]
+#     volumes:
+#       - /host/mongodb/mongo2:/data/db
+#       - ./mongodb.key:/etc/mongo/mongodb.key
+#     networks:
+#       - mongo-net
+
+# networks:
+#   mongo-net:
+#     driver: bridge
+version: '3.1'
+
+services:
+  pcc_backend_dev:
+    container_name: pcc_backend_dev
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - ${PORT}:${PORT}
+    restart: always
+    depends_on:
+      mongo:
+        condition: service_healthy
+    env_file:
+      - .env
+    networks:
+      - mongo-net
+
+  mongo:
+    image: mongo:8.0
+    container_name: mongo1
+    ports:
+      - 27017:27017 # admin
+    volumes:
+      - /mongodb_data:/data/db
+    command: "mongod --replSet rs0 --bind_ip_all"
+    healthcheck:
+      test: mongosh --eval "db.adminCommand('ping')"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    networks:
+      - mongo-net
+
+  mongodb_setup:
+    image: mongo:8.0
+    depends_on:
+      mongo:
+        condition: service_healthy
+    restart: "no"
+    command: >
+      mongosh --host mongo1:27017 --eval '
+        config = {
+          "_id": "rs0",
+          "members": [
+            { "_id": 0, "host": "mongo1:27017", "priority": 1}
+          ]
+        }
+        rs.initiate(config);'
+    networks:
+      - mongo-net
+
+  redis_pcc:
+    image: redis:6.2.6-alpine
+    container_name: redis_pcc
+    restart: always
+    ports:
+      - ${REDIS_PORT}:${REDIS_PORT}
+    volumes:
+      - redis_data:/data 
+    networks:
+      - shared_net
+
+volumes:
+  mongodb_data:
+    driver: local
+  redis_data:
+
+networks:
+  mongo-net:
+    driver: bridge

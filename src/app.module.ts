@@ -30,7 +30,8 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
     BullModule.forRoot({
       redis: {
         host: envConstant.REDIS_HOST,
-        port: 6379,
+        port: envConstant.PORT,
+        db: envConstant.REDIS_DB
       },
     }),
     InstructorModule,
