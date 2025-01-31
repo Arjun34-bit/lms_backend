@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import * as bcrypt from 'bcryptjs';
 import { SignUpDto } from '../dto/signup.dto';
@@ -7,12 +7,17 @@ import { LoginDto } from '../dto/login.dto';
 import { RoleEnum } from '@prisma/client';
 import { firebaseAuth } from 'src/config/firebase.config';
 import { envConstant } from '@constants/index';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private jwtService: JwtService,
+    private eventEmitter: EventEmitter2,
+    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
   ) {}
 
   async signupWithEmail(data: SignUpDto) {
@@ -38,9 +43,6 @@ export class AuthService {
 
       // Send verification email
       const user = await firebaseAuth.getUser(userRecord.uid);
-      let link = await firebaseAuth.generateEmailVerificationLink(user.email);
-      link += `&continueUrl=${envConstant.ALLOWED_ORIGIN}/user-verification/success`
-      console.log(link, 'verification link');
 
       const createdUser = await this.prisma.user.create({
         data: {
@@ -61,8 +63,43 @@ export class AuthService {
         email: createdUser.email,
         role: RoleEnum.student,
       };
-
+      this.eventEmitter.emit('user.sendVerificationLink', {
+        email: createdUser.email,
+        role: createdUser.role,
+      });
       return payload;
+    } catch (error) {
+      if (error.statusCode === 500) {
+        Logger.error(error?.stack);
+      }
+      throw error;
+    }
+  }
+
+  async verifyEmail(verificationToken: string) {
+    try {
+      const cacheKey = `user-verification:${verificationToken}`;
+      const userData: any = await this.cacheManager.get(cacheKey);
+      if (!userData) {
+        throw new BadRequestException('Invalid link or link has been expired');
+      }
+      const user = JSON.parse(userData);
+
+      const userUpdated = await this.prisma.user.update({
+        where: {
+          email: user?.email,
+          role: user?.role,
+        },
+        data: {
+          verified: true,
+        },
+      });
+
+      await firebaseAuth.updateUser(userUpdated.firebaseUid, {
+        emailVerified: true
+      })
+
+      return { message: 'Instructor account has been verified successfully' };
     } catch (error) {
       if (error.statusCode === 500) {
         Logger.error(error?.stack);
@@ -87,7 +124,7 @@ export class AuthService {
             email: firebaseUser.email ?? null,
             role: RoleEnum.student,
             firebaseUid: firebaseUser.uid,
-            verified: true,  // Mark as verified
+            verified: true, // Mark as verified
             student: {
               create: {},
             },
@@ -96,12 +133,12 @@ export class AuthService {
       }
       const student = await this.prisma.student.findUnique({
         where: {
-          userId: user.id
+          userId: user.id,
         },
         select: {
-          id: true
-        }
-      })
+          id: true,
+        },
+      });
       // Payload to return after verification/login/signup
       const payload = {
         userId: user.id,
@@ -164,23 +201,6 @@ export class AuthService {
         Logger.error(error?.stack);
       }
       throw error;
-    }
-  }
-
-  async verifyEmail(oobCode: string) {
-    try {
-      if (!oobCode) {
-        throw new BadRequestException('oobCode is missing!');
-      }
-      const user = await firebaseAuth.verifyIdToken(oobCode);
-      console.log(oobCode)
-      if (user.emailVerified) {
-        return { message: 'Email verified successfully' };
-      }
-      throw new BadRequestException('Email not verified.');
-    } catch (error) {
-      console.log(error?.message)
-      throw new BadRequestException('Invalid or expired verification code');
     }
   }
 

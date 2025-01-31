@@ -1,9 +1,13 @@
-import { Body, Controller, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, Res } from '@nestjs/common';
 import { ApiResponseT } from '@utils/types';
 import { ApiUtilsService } from '@utils/utils.service';
 import { AuthService } from '../services/auth.service';
 import { SignUpDto } from '../dto/signup.dto';
 import { LoginDto, LoginWithPhoneNumberDto } from '../dto/login.dto';
+import { Public } from 'src/common/decorators/public.decorator';
+import { VerifyEmailDto } from '@modules/student/auth/dto/verifyEmail.dto';
+import { Response } from 'express';
+import { envConstant } from '@constants/index';
 
 @Controller()
 export class StudentAuthController {
@@ -33,10 +37,11 @@ export class StudentAuthController {
     return this.apiUtilsSevice.make_response(data);
   }
 
-  @Post('verify-email')
-  async verifyEmail(@Query('oobCode') oobCode: string) {
-    const data = await this.authService.verifyEmail(oobCode);
-    return this.apiUtilsSevice.make_response(null, data.message);
+  @Public()
+  @Get('verify-email')
+  async verifyEmail(@Query() queryDto: VerifyEmailDto, @Res() res: Response) {
+    const data = await this.authService.verifyEmail(queryDto.token);
+    return res.redirect(`${envConstant.CLIENT_BASE_URL}/student/verified?message=${data.message}`)
   }
 
   @Post('google-login')

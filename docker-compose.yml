@@ -1,35 +1,11 @@
 version: '3.8'
 
 services:
-  pcc_backend_dev:
-    container_name: pcc_backend_dev
-    build:
-      context: .
-      dockerfile: Dockerfile
-    ports:
-      - ${PORT}:${PORT}
-    restart: always
-    depends_on:
-      redis_pcc:
-        condition: service_healthy
-      mongo:
-        condition: service_healthy
-      mongodb_setup:
-        condition: service_completed_successfully
-      prisma_migration:
-        condition: service_completed_successfully
-    env_file:
-      - .env
-    networks:
-      - mongo-net
-    command: >
-      sh -c "npm run start:dev"
-
   mongo:
     image: mongo:8.0
     container_name: mongo1
     ports:
-      - 27017:27017
+      - 27018:27017
     volumes:
       - /mongodb_data:/data/db
     command: "mongod --replSet rs0 --bind_ip_all"
@@ -39,8 +15,6 @@ services:
       timeout: 5s
       retries: 5
       start_period: 40s
-    networks:
-      - mongo-net
 
   mongodb_setup:
     image: mongo:8.0
@@ -49,19 +23,17 @@ services:
         condition: service_healthy
     restart: "no"
     command: >
-      mongosh --host mongo1:27017 --eval '
-        var status = rs.status();
-        if (status.ok !== 1) {
-          rs.initiate({
-            "_id": "rs0",
-            "members": [{ "_id": 0, "host": "mongo1:27017" }]
-          });
-        } else {
-          print("Replica set already initialized.");
-        }'
-
-    networks:
-      - mongo-net
+      sh -c "sleep 10 &&
+            mongosh --host mongo1:27017 --eval '
+            var status = rs.status();
+            if (!status || status.code == 94) { 
+              rs.initiate({ 
+                _id: \"rs0\", 
+                members: [{ _id: 0, host: \"mongo1:27017\" }] 
+              }); 
+            } else { 
+              print(\"Replica set already initialized.\"); 
+            }'"
 
   redis_pcc:
     image: redis:6.2.6-alpine
@@ -76,26 +48,7 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
-    networks:
-      - mongo-net
 
-  prisma_migration:
-    image: node:18-alpine
-    working_dir: /app
-    volumes:
-      - .:/app
-    depends_on:
-      redis_pcc:
-        condition: service_healthy
-      mongo:
-        condition: service_healthy
-      mongodb_setup:
-        condition: service_completed_successfully
-    command: >
-      sh -c "npm install && npx prisma generate && sleep 5 && npx prisma db push"
-    networks:
-      - mongo-net
-    restart: "no"
 
 volumes:
   mongodb_data:
@@ -103,6 +56,3 @@ volumes:
   redis_data:
 
 
-networks:
-  mongo-net:
-    driver: bridge

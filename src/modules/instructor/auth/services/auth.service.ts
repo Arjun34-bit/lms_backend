@@ -22,7 +22,6 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private jwtService: JwtService,
-    private readonly emailService: EmailService,
     @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
     private eventEmitter: EventEmitter2,
   ) {}
@@ -38,6 +37,17 @@ export class AuthService {
       }
 
       const hashedPassword = await bcrypt.hash(data.password, 10);
+      const userRecord = await firebaseAuth.createUser({
+        displayName: data.name,
+        email: data.email,
+        emailVerified: false,
+        disabled: false,
+        phoneNumber: data.phoneNumber,
+        password: data.password,
+      });
+
+      // Send verification email
+      const user = await firebaseAuth.getUser(userRecord.uid);
 
       const createdUser = await this.prisma.user.create({
         data: {
@@ -46,6 +56,7 @@ export class AuthService {
           phoneNumber: data.phoneNumber,
           password: hashedPassword,
           role: RoleEnum.instructor,
+          firebaseUid: user.uid,
           instructor: {
             create: {
               departmentId: data.departmentId ? data.departmentId : undefined,
@@ -82,7 +93,7 @@ export class AuthService {
       }
       const user = JSON.parse(userData);
 
-      await this.prisma.user.update({
+      const userUpdated = await this.prisma.user.update({
         where: {
           email: user?.email,
           role: user?.role,
@@ -91,6 +102,10 @@ export class AuthService {
           verified: true,
         },
       });
+
+      await firebaseAuth.updateUser(userUpdated.firebaseUid, {
+        emailVerified: true
+      })
 
       return { message: 'Instructor account has been verified successfully' };
     } catch (error) {
