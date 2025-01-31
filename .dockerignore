@@ -1,0 +1,10 @@
+node_modules
+dist
+old
+.git
+.DS_Store
+npm-debug.log
+yarn*
+docker-compose.override.yml
+package-lock.json
+

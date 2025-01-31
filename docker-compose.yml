@@ -1,45 +1,4 @@
-# version: '3.9'
-
-# services:
-#   mongo1:
-#     image: mongo:latest
-#     container_name: mongo1
-#     restart: always
-#     ports:
-#       - 27017:27017
-#     environment:
-#       MONGO_INITDB_ROOT_USERNAME: admin
-#       MONGO_INITDB_ROOT_PASSWORD: password
-#       MONGO_INITDB_DATABASE: admin
-#     command: [ "mongod", "--replSet", "rs0", "--keyFile", "/etc/mongo/mongodb.key" ]
-#     volumes:
-#       - /host/mongodb/mongo1:/data/db
-#       - ./init-mongo.sh:/docker-entrypoint-initdb.d/init-mongo.sh
-#       - ./mongodb.key:/etc/mongo/mongodb.key
-#     networks:
-#       - mongo-net
-
-#   mongo2:
-#     image: mongo:latest
-#     container_name: mongo2
-#     restart: always
-#     ports:
-#       - 27018:27017
-#     environment:
-#       MONGO_INITDB_ROOT_USERNAME: admin
-#       MONGO_INITDB_ROOT_PASSWORD: password
-#       MONGO_INITDB_DATABASE: admin
-#     command: [ "mongod", "--replSet", "rs0", "--keyFile", "/etc/mongo/mongodb.key" ]
-#     volumes:
-#       - /host/mongodb/mongo2:/data/db
-#       - ./mongodb.key:/etc/mongo/mongodb.key
-#     networks:
-#       - mongo-net
-
-# networks:
-#   mongo-net:
-#     driver: bridge
-version: '3.1'
+version: '3.8'
 
 services:
   pcc_backend_dev:
@@ -51,18 +10,26 @@ services:
       - ${PORT}:${PORT}
     restart: always
     depends_on:
+      redis_pcc:
+        condition: service_healthy
       mongo:
         condition: service_healthy
+      mongodb_setup:
+        condition: service_completed_successfully
+      prisma_migration:
+        condition: service_completed_successfully
     env_file:
       - .env
     networks:
       - mongo-net
+    command: >
+      sh -c "npm run start:dev"
 
   mongo:
     image: mongo:8.0
     container_name: mongo1
     ports:
-      - 27017:27017 # admin
+      - 27017:27017
     volumes:
       - /mongodb_data:/data/db
     command: "mongod --replSet rs0 --bind_ip_all"
@@ -83,13 +50,16 @@ services:
     restart: "no"
     command: >
       mongosh --host mongo1:27017 --eval '
-        config = {
-          "_id": "rs0",
-          "members": [
-            { "_id": 0, "host": "mongo1:27017", "priority": 1}
-          ]
-        }
-        rs.initiate(config);'
+        var status = rs.status();
+        if (status.ok !== 1) {
+          rs.initiate({
+            "_id": "rs0",
+            "members": [{ "_id": 0, "host": "mongo1:27017" }]
+          });
+        } else {
+          print("Replica set already initialized.");
+        }'
+
     networks:
       - mongo-net
 
@@ -100,14 +70,38 @@ services:
     ports:
       - ${REDIS_PORT}:${REDIS_PORT}
     volumes:
-      - redis_data:/data 
+      - redis_data:/data
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
     networks:
-      - shared_net
+      - mongo-net
+
+  prisma_migration:
+    image: node:18-alpine
+    working_dir: /app
+    volumes:
+      - .:/app
+    depends_on:
+      redis_pcc:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+      mongodb_setup:
+        condition: service_completed_successfully
+    command: >
+      sh -c "npm install && npx prisma generate && sleep 5 && npx prisma db push"
+    networks:
+      - mongo-net
+    restart: "no"
 
 volumes:
   mongodb_data:
     driver: local
   redis_data:
+
 
 networks:
   mongo-net:

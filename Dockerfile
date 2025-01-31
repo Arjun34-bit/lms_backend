@@ -16,11 +16,13 @@ RUN npm install -g @nestjs/cli
 # Step 5: Copy the rest of the application code to the container
 COPY . .
 
-# Step 6: Build the application (if applicable)
+# Step 6: prisma generate
+RUN npx prisma generate
+
+# Step 7: Build the application (if applicable)
 RUN npm run build
 
-# Step 7: Expose the application port
+# Step 8: Expose the application port
 EXPOSE ${PORT}
 
-# Step 8: Define the command to run your application
-CMD ["npm", "run", "start:dev"]
+

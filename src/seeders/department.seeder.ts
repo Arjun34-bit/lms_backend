@@ -25,7 +25,7 @@ export class DepartmentSeederService {
         name: true,
       },
     });
-
+    console.log(departmentThatExists , 'existingdepartments')
     // Extract the names of existing departments
     const existingDepartmentNames = await Promise.all(
       departmentThatExists.map(async (dept) => dept.name),
@@ -44,9 +44,11 @@ export class DepartmentSeederService {
 
     // Insert the missing departments
     if (departmentToInsert.length > 0) {
-      await this.prisma.department.createMany({
-        data: departmentToInsert,
-      });
+      await this.prisma.$transaction([
+        this.prisma.department.createMany({
+          data: departmentToInsert,
+        })
+      ])
       this.logger.log('Inserted department seed data');
     }
   }
