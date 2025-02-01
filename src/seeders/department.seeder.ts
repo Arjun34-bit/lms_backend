@@ -25,7 +25,6 @@ export class DepartmentSeederService {
         name: true,
       },
     });
-    console.log(departmentThatExists , 'existingdepartments')
     // Extract the names of existing departments
     const existingDepartmentNames = await Promise.all(
       departmentThatExists.map(async (dept) => dept.name),

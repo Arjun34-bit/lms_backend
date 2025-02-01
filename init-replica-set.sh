@@ -1,0 +1,32 @@
+#!/bin/bash
+
+mongo=mongo
+port=27017
+
+echo "###### Waiting for ${mongo} instance startup.."
+until mongosh --host ${mongo}:${port} --eval 'quit(db.runCommand({ ping: 1 }).ok ? 0 : 2)' &>/dev/null; do
+  printf '.'
+  sleep 1
+done
+echo "###### Working ${mongo} instance found, initiating user setup & initializing rs setup.."
+
+# setup user + pass and initialize replica sets
+mongosh --host ${mongo}:${port} <<EOF
+var rootUser = 'admin';
+var rootUser = '$MONGO_USERNAME';
+var rootPassword = '$MONGO_PASSWORD';
+var admin = db.getSiblingDB('admin');
+admin.auth(rootUser, rootPassword);
+
+var config = {
+    "_id": "rs0",
+    "members": [
+        {
+            "_id": 1,
+            "host": "${mongo}:${port}"
+        }
+    ]
+};
+rs.initiate(config);
+rs.status();
+EOF

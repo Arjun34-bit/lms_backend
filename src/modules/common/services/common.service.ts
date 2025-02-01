@@ -41,9 +41,7 @@ export class CommonService {
     try {
       const subjects = await this.prisma.subject.findMany({
         where: {
-          departmentId: queryDto.departmentId
-            ? queryDto.departmentId
-            : undefined,
+          ...queryDto
         },
         include: {
           department: true,
