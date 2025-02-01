@@ -3,20 +3,21 @@
 mongo=mongo
 port=27017
 
-echo "###### Waiting for ${mongo} instance startup.."
-until mongosh --host ${mongo}:${port} --eval 'quit(db.runCommand({ ping: 1 }).ok ? 0 : 2)' &>/dev/null; do
-  printf '.'
-  sleep 1
+echo "Waiting for MongoDB to be ready..."
+# Wait for MongoDB to be up and running (check the connection status)
+until mongosh --host ${mongo}:${port} --eval 'quit(db.runCommand({ ping: 1 }).ok ? 0 : 1)' &>/dev/null; do
+  echo "MongoDB is not ready yet, retrying..."
+  sleep 2
 done
 echo "###### Working ${mongo} instance found, initiating user setup & initializing rs setup.."
 
-# setup user + pass and initialize replica sets
+# Setup user + pass and initialize replica sets
 mongosh --host ${mongo}:${port} <<EOF
-var rootUser = 'admin';
-var rootUser = '$MONGO_USERNAME';
-var rootPassword = '$MONGO_PASSWORD';
+use admin;
+var rootUser  = '$MONGO_INITDB_ROOT_USERNAME';
+var rootPassword = '$MONGO_INITDB_ROOT_PASSWORD';
 var admin = db.getSiblingDB('admin');
-admin.auth(rootUser, rootPassword);
+admin.auth(rootUser , rootPassword);
 
 var config = {
     "_id": "rs0",
