@@ -31,23 +31,32 @@ export class AuthService {
       const existingUser = await this.prisma.user.count({
         where: { email: data.email?.toLowerCase() },
       });
+      const existingUserInFirebase =  await firebaseAuth.getUserByEmail(data.email.toLowerCase());
 
-      if (existingUser) {
+      if (existingUser && existingUserInFirebase) {
         throw new BadRequestException('Email already exists');
       }
-
+      
+      let userInFirebase:any;
+      if (existingUserInFirebase) {
+        // Update existing user
+        userInFirebase = await firebaseAuth.updateUser(existingUserInFirebase.uid, {
+          displayName: data.name,
+          phoneNumber: data.phoneNumber,
+          password: data.password,
+        });
+      } else {
+        // Create new user
+        userInFirebase = await firebaseAuth.createUser({
+          displayName: data.name,
+          email: data.email.toLowerCase(),
+          emailVerified: userInFirebase.emailVerified,
+          disabled: false,
+          phoneNumber: data.phoneNumber,
+          password: data.password,
+        });
+      }
       const hashedPassword = await bcrypt.hash(data.password, 10);
-      const userRecord = await firebaseAuth.createUser({
-        displayName: data.name,
-        email: data.email,
-        emailVerified: false,
-        disabled: false,
-        phoneNumber: data.phoneNumber,
-        password: data.password,
-      });
-
-      // Send verification email
-      const user = await firebaseAuth.getUser(userRecord.uid);
 
       const createdUser = await this.prisma.user.create({
         data: {
@@ -56,7 +65,7 @@ export class AuthService {
           phoneNumber: data.phoneNumber,
           password: hashedPassword,
           role: RoleEnum.instructor,
-          firebaseUid: user.uid,
+          firebaseUid: userInFirebase?.uid,
           instructor: {
             create: {
               departmentId: data.departmentId ? data.departmentId : undefined,
