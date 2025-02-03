@@ -1,4 +1,9 @@
-import { BadRequestException, Inject, Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  Logger,
+} from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import * as bcrypt from 'bcryptjs';
 import { SignUpDto } from '../dto/signup.dto';
@@ -25,20 +30,32 @@ export class AuthService {
       const existingUser = await this.prisma.user.count({
         where: { email: data.email?.toLowerCase() },
       });
-      const existingUserInFirebase =  await firebaseAuth.getUserByEmail(data.email.toLowerCase());
-      
+      const existingUserInFirebase = await firebaseAuth
+        .getUserByEmail(data.email.toLowerCase())
+        .then((user) => user)
+        .catch((error) =>
+          error.code === 'auth/user-not-found'
+            ? null
+            : Promise.reject(
+                new BadRequestException('Firebase error: ' + error.message),
+              ),
+        );
+
       if (existingUser && existingUserInFirebase) {
         throw new BadRequestException('Email already exists');
       }
-      
-      let userInFirebase:any;
+
+      let userInFirebase: any;
       if (existingUserInFirebase) {
         // Update existing user
-        userInFirebase = await firebaseAuth.updateUser(existingUserInFirebase.uid, {
-          displayName: data.name,
-          phoneNumber: data.phoneNumber,
-          password: data.password,
-        });
+        userInFirebase = await firebaseAuth.updateUser(
+          existingUserInFirebase.uid,
+          {
+            displayName: data.name,
+            phoneNumber: data.phoneNumber,
+            password: data.password,
+          },
+        );
       } else {
         // Create new user
         userInFirebase = await firebaseAuth.createUser({
@@ -106,8 +123,8 @@ export class AuthService {
       });
 
       await firebaseAuth.updateUser(userUpdated.firebaseUid, {
-        emailVerified: true
-      })
+        emailVerified: true,
+      });
 
       return { message: 'Instructor account has been verified successfully' };
     } catch (error) {
