@@ -70,8 +70,11 @@ export class AuthService {
 
       const hashedPassword = await bcrypt.hash(data.password, 10);
 
-      const createdUser = await this.prisma.user.create({
-        data: {
+      const createdUser = await this.prisma.user.upsert({
+        where: {
+          email: data?.email?.toLowerCase()
+        },
+        create: {
           name: data.name,
           email: data.email?.toLowerCase(),
           password: hashedPassword,
@@ -82,6 +85,17 @@ export class AuthService {
             create: {},
           },
         },
+        update: {
+          name: data.name,
+          email: data.email?.toLowerCase(),
+          password: hashedPassword,
+          role: RoleEnum.student,
+          verified: userInFirebase.emailVerified,
+          firebaseUid: userInFirebase.uid,
+          student: {
+            create: {},
+          },
+        }
       });
 
       const payload = {
