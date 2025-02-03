@@ -37,7 +37,6 @@ export class StudentAuthController {
     return this.apiUtilsSevice.make_response(data);
   }
 
-  @Public()
   @Get('verify-email')
   async verifyEmail(@Query() queryDto: VerifyEmailDto, @Res() res: Response) {
     const data = await this.authService.verifyEmail(queryDto.token);

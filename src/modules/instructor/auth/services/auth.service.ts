@@ -12,7 +12,6 @@ import { JwtService } from '@nestjs/jwt';
 import { LoginDto } from '../dto/login.dto';
 import { RoleEnum } from '@prisma/client';
 import { firebaseAuth } from 'src/config/firebase.config';
-import { EmailService } from '@modules/common/email/email.service';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -72,7 +71,7 @@ export class AuthService {
 
       const createdUser = await this.prisma.user.upsert({
         where: {
-          email: data?.email?.toLowerCase()
+          email: data?.email?.toLowerCase(),
         },
         create: {
           name: data.name,
@@ -101,7 +100,7 @@ export class AuthService {
               departmentId: data.departmentId ? data.departmentId : undefined,
             },
           },
-        }
+        },
       });
 
       const payload = {
@@ -132,6 +131,17 @@ export class AuthService {
       }
       const user = JSON.parse(userData);
 
+      const existingUserInFirebase = await firebaseAuth
+        .getUserByEmail(user?.email?.toLowerCase())
+        .then((user) => user)
+        .catch((error) =>
+          error.code === 'auth/user-not-found'
+            ? null
+            : Promise.reject(
+                new BadRequestException('Firebase error: ' + error.message),
+              ),
+        );
+
       const userUpdated = await this.prisma.user.update({
         where: {
           email: user?.email,
@@ -139,6 +149,7 @@ export class AuthService {
         },
         data: {
           verified: true,
+          firebaseUid: existingUserInFirebase.uid,
         },
       });
 

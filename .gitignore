@@ -37,3 +37,4 @@ lerna-debug.log*
 # lock package file
 package-lock.json
 yarn*
+table_schema.ts

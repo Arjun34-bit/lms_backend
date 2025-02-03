@@ -1,13 +1,19 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { SubjectFilterDto } from '../dtos/subjectFilter.dto';
 import { PaginationDto } from 'src/common/dtos/pagination.dto';
 import { CourseFilterDto } from '../dtos/courseFilter.dto';
 import { AdminApprovalEnum } from '@prisma/client';
+import { ResendEmailVerificationLinkDto } from '../dtos/resendVerificationLink.dto';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { firebaseAuth } from 'src/config/firebase.config';
 
 @Injectable()
 export class CommonService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private eventEmitter: EventEmitter2,
+  ) {}
 
   async getLanguages() {
     try {
@@ -41,7 +47,7 @@ export class CommonService {
     try {
       const subjects = await this.prisma.subject.findMany({
         where: {
-          ...queryDto
+          ...queryDto,
         },
         include: {
           department: true,
@@ -158,6 +164,51 @@ export class CommonService {
       });
 
       return user;
+    } catch (error) {
+      if (error.statusCode === 500) {
+        Logger.error(error?.stack);
+      }
+      throw error;
+    }
+  }
+
+  async resendEmailVerificationLink(dto: ResendEmailVerificationLinkDto) {
+    try {
+      const user = await this.prisma.user.findUnique({
+        where: {
+          email: dto.email.toLowerCase(),
+        },
+        select: {
+          email: true,
+          role: true,
+          verified: true,
+        },
+      });
+
+      if (!user) {
+        throw new BadRequestException("User doesn't exists");
+      }
+
+      const existingUserInFirebase = await firebaseAuth
+        .getUserByEmail(dto.email.toLowerCase())
+        .then((user) => user)
+        .catch((error) =>
+          error.code === 'auth/user-not-found'
+            ? null
+            : Promise.reject(
+                new BadRequestException('Firebase error: ' + error.message),
+              ),
+        );
+
+      if (user.verified && existingUserInFirebase?.emailVerified) {
+        throw new BadRequestException('User email is already verified');
+      }
+
+      this.eventEmitter.emit('user.sendVerificationLink', {
+        email: user.email,
+        role: user.role,
+      });
+      return null;
     } catch (error) {
       if (error.statusCode === 500) {
         Logger.error(error?.stack);

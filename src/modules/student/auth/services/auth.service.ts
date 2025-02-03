@@ -72,7 +72,7 @@ export class AuthService {
 
       const createdUser = await this.prisma.user.upsert({
         where: {
-          email: data?.email?.toLowerCase()
+          email: data?.email?.toLowerCase(),
         },
         create: {
           name: data.name,
@@ -95,7 +95,7 @@ export class AuthService {
           student: {
             create: {},
           },
-        }
+        },
       });
 
       const payload = {
@@ -126,6 +126,17 @@ export class AuthService {
       }
       const user = JSON.parse(userData);
 
+      const existingUserInFirebase = await firebaseAuth
+        .getUserByEmail(user?.email?.toLowerCase())
+        .then((user) => user)
+        .catch((error) =>
+          error.code === 'auth/user-not-found'
+            ? null
+            : Promise.reject(
+                new BadRequestException('Firebase error: ' + error.message),
+              ),
+        );
+
       const userUpdated = await this.prisma.user.update({
         where: {
           email: user?.email,
@@ -133,6 +144,7 @@ export class AuthService {
         },
         data: {
           verified: true,
+          firebaseUid: existingUserInFirebase.uid
         },
       });
 
@@ -214,11 +226,25 @@ export class AuthService {
         },
       });
 
-      if (!user || !(await bcrypt.compare(password, user.password))) {
+      const fireAuthUser = await firebaseAuth
+        .getUserByEmail(email?.toLowerCase())
+        .then((user) => user)
+        .catch((error) =>
+          error.code === 'auth/user-not-found'
+            ? null
+            : Promise.reject(
+                new BadRequestException('Firebase error: ' + error.message),
+              ),
+        );
+
+      if (!user || !fireAuthUser) {
+        throw new BadRequestException("User doesn't exists. Please signup.");
+      }
+
+      if (!(await bcrypt.compare(password, user.password))) {
         throw new BadRequestException('Invalid email or password');
       }
 
-      const fireAuthUser = await firebaseAuth.getUserByEmail(email);
       if (!fireAuthUser.emailVerified || !user.verified) {
         throw new BadRequestException(
           'Email not verified. Please verify before logging in.',

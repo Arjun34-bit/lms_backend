@@ -1,10 +1,11 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query } from '@nestjs/common';
 import { ApiUtilsService } from '@utils/utils.service';
 import { CommonService } from '../services/common.service';
 import { ApiPaginationResponseT, ApiResponseT } from '@utils/types';
 import { SubjectFilterDto } from '../dtos/subjectFilter.dto';
 import { PaginationDto } from 'src/common/dtos/pagination.dto';
 import { CourseFilterDto } from '../dtos/courseFilter.dto';
+import { ResendEmailVerificationLinkDto } from '../dtos/resendVerificationLink.dto';
 
 @Controller('common')
 export class CommonController {
@@ -49,6 +50,15 @@ export class CommonController {
       data.courses,
       data.totalCount,
       data.limit,
+    );
+  }
+
+  @Post('resend-verification-link')
+  async resendEmailVerificationLink(@Body() dto: ResendEmailVerificationLinkDto): Promise<ApiResponseT> {
+    const data = await this.commonService.resendEmailVerificationLink(dto);
+    return this.apiUtilsSevice.make_response(
+      data,
+      'Email verification sent successfully',
     );
   }
 }
