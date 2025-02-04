@@ -31,12 +31,17 @@ enum PaymentStatusEnum {
   FAILED
 }
 
+enum FileTypeEnum {
+  video
+  image
+}
+
 model Department {
   id          String   @id @default(auto()) @map("_id") @db.ObjectId
   name        String   @unique @map("department_name")
   description String?  @map("department_description")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
 
   subjects    Subject[]
   instructors Instructor[]
@@ -49,8 +54,8 @@ model Subject {
   description  String?    @map("subject_description")
   department   Department @relation(fields: [departmentId], references: [id])
   departmentId String     @db.ObjectId
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  created_at   DateTime   @default(now())
+  updated_at   DateTime   @updatedAt
 
   instructorSubject InstructorSubject[]
   courses           Course[]
@@ -61,17 +66,17 @@ model Category {
   name        String
   description String?
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  courses   Course[]
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  courses    Course[]
 }
 
 model Language {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  name      String   @map("language_name")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  courses   Course[]
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  name       String   @map("language_name")
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  courses    Course[]
 }
 
 model User {
@@ -83,24 +88,25 @@ model User {
   phoneNumber String?  @map("phone_number")
   password    String?
   verified    Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
 
   admin                Admin?
   instructor           Instructor?
   student              Student?
-  addedCourses         Course[]       @relation("AddedCourses")
-  scheduledLiveClasses LiveClass[]    @relation("ScheduledClasses")
+  addedCourses         Course[]        @relation("AddedCourses")
+  scheduledLiveClasses LiveClass[]     @relation("ScheduledClasses")
   notifications        Notification[]
+  CommunityFeed        CommunityFeed[]
 }
 
 model Admin {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  user      User     @relation(fields: [userId], references: [id])
-  userId    String   @unique @db.ObjectId
-  address   String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  user       User     @relation(fields: [userId], references: [id])
+  userId     String   @unique @db.ObjectId
+  address    String?
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 }
 
 model Instructor {
@@ -110,8 +116,8 @@ model Instructor {
   department     Department?       @relation(fields: [departmentId], references: [id])
   departmentId   String?           @db.ObjectId
   approvalStatus AdminApprovalEnum @default(pending)
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
+  created_at     DateTime          @default(now())
+  updated_at     DateTime          @updatedAt
 
   liveClasses                LiveClass[]
   instructorSubjects         InstructorSubject[]
@@ -124,8 +130,8 @@ model InstructorSubject {
   instructorId String     @db.ObjectId
   subject      Subject    @relation(fields: [subjectId], references: [id])
   subjectId    String     @db.ObjectId
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  created_at   DateTime   @default(now())
+  updated_at   DateTime   @updatedAt
 }
 
 model InstructorAssignedToCourse {
@@ -134,8 +140,8 @@ model InstructorAssignedToCourse {
   instructorId String     @db.ObjectId
   course       Course     @relation(fields: [courseId], references: [id])
   courseId     String     @db.ObjectId
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  created_at   DateTime   @default(now())
+  updated_at   DateTime   @updatedAt
 }
 
 model Student {
@@ -143,36 +149,37 @@ model Student {
   user                  User                    @relation(fields: [userId], references: [id])
   userId                String                  @unique @db.ObjectId
   address               String?
-  createdAt             DateTime                @default(now())
-  updatedAt             DateTime                @updatedAt
+  created_at            DateTime                @default(now())
+  updated_at            DateTime                @updatedAt
   studentCourseEnrolled StudentCourseEnrolled[]
   LiveClassAttendance   LiveClassAttendance[]
   AssignmentSubmitted   AssignmentSubmitted[]
   TestResult            TestResult[]
+  CourseBuy             CourseBuy[]
 }
 
 model Course {
-  id                      String            @id @default(auto()) @map("_id") @db.ObjectId
-  title                   String
-  level                   CourseLevelEnum
-  description             String?
-  category                Category          @relation(fields: [categoryId], references: [id])
-  categoryId              String            @db.ObjectId
-  startDate               DateTime          @map("start_date")
-  endDate                 DateTime          @map("end_date")
-  department              Department        @relation(fields: [departmentId], references: [id])
-  departmentId            String            @db.ObjectId
-  subject                 Subject           @relation(fields: [subjectId], references: [id])
-  subjectId               String            @db.ObjectId
-  language                Language          @relation(fields: [languageId], references: [id])
-  languageId              String            @db.ObjectId
-  price                   Float
-  thumbnailImageObjectKey String?           @map("thubnail_image_object_key")
-  addedBy                 User?             @relation("AddedCourses", fields: [addedById], references: [id])
-  addedById               String?           @db.ObjectId
-  approvalStatus          AdminApprovalEnum @default(pending)
-  createdAt               DateTime          @default(now())
-  updatedAt               DateTime          @updatedAt
+  id                String            @id @default(auto()) @map("_id") @db.ObjectId
+  title             String
+  level             CourseLevelEnum
+  description       String?
+  category          Category          @relation(fields: [categoryId], references: [id])
+  categoryId        String            @db.ObjectId
+  startDate         DateTime          @map("start_date")
+  endDate           DateTime          @map("end_date")
+  department        Department        @relation(fields: [departmentId], references: [id])
+  departmentId      String            @db.ObjectId
+  subject           Subject           @relation(fields: [subjectId], references: [id])
+  subjectId         String            @db.ObjectId
+  language          Language          @relation(fields: [languageId], references: [id])
+  languageId        String            @db.ObjectId
+  price             Float
+  thumbnailImageUrl String?
+  addedBy           User?             @relation("AddedCourses", fields: [addedById], references: [id])
+  addedById         String?           @db.ObjectId
+  approvalStatus    AdminApprovalEnum @default(pending)
+  created_at        DateTime          @default(now())
+  updated_at        DateTime          @updatedAt
 
   library                    Library[]
   liveClasses                LiveClass[]
@@ -182,29 +189,37 @@ model Course {
   TestResult                 TestResult[]
   Notes                      Notes[]
   Videos                     Videos[]
+  CourseBuy                  CourseBuy[]
+  Advertisement              Advertisement[]
+  CommunityFeed              CommunityFeed[]
+  CourseLession              CourseLession[]
 }
 
 model StudentCourseEnrolled {
-  id        String     @id @default(auto()) @map("_id") @db.ObjectId
-  course    Course     @relation(fields: [courseId], references: [id])
-  courseId  String     @db.ObjectId
-  student   Student    @relation(fields: [studentId], references: [id])
-  studentId String     @db.ObjectId
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-  courseBuy CourseBuy?
+  id         String     @id @default(auto()) @map("_id") @db.ObjectId
+  course     Course     @relation(fields: [courseId], references: [id])
+  courseId   String     @db.ObjectId
+  student    Student    @relation(fields: [studentId], references: [id])
+  studentId  String     @db.ObjectId
+  created_at DateTime   @default(now())
+  updated_at DateTime   @updatedAt
+  courseBuy  CourseBuy?
 }
 
 model CourseBuy {
-  id                 String                @id @default(auto()) @map("_id") @db.ObjectId
-  courseEnrolled     StudentCourseEnrolled @relation(fields: [courseEnrollmentId], references: [id])
-  courseEnrollmentId String                @unique @db.ObjectId
+  id                 String                 @id @default(auto()) @map("_id") @db.ObjectId
+  course             Course                 @relation(fields: [courseId], references: [id])
+  courseId           String                 @db.ObjectId
+  student            Student                @relation(fields: [studentId], references: [id])
+  studentId          String                 @db.ObjectId
+  courseEnrolled     StudentCourseEnrolled? @relation(fields: [courseEnrollmentId], references: [id])
+  courseEnrollmentId String?                @unique @db.ObjectId
   amount             Float
-  status             PaymentStatusEnum     @default(PENDING)
-  razorpayPaymentId  String                @unique
-  transactionId      String?               @unique
-  createdAt          DateTime              @default(now())
-  updatedAt          DateTime              @updatedAt
+  status             PaymentStatusEnum      @default(PENDING)
+  razorpayPaymentId  String                 @unique
+  transactionId      String?                @unique
+  created_at         DateTime               @default(now())
+  updated_at         DateTime               @updatedAt
 }
 
 model LiveClass {
@@ -220,8 +235,8 @@ model LiveClass {
   startTime           DateTime              @map("start_time")
   endTime             DateTime              @map("end_time")
   approvalStatus      AdminApprovalEnum     @default(pending)
-  createdAt           DateTime              @default(now())
-  updatedAt           DateTime              @updatedAt
+  created_at          DateTime              @default(now())
+  updated_at          DateTime              @updatedAt
   LiveClassAttendance LiveClassAttendance[]
 }
 
@@ -232,19 +247,19 @@ model LiveClassAttendance {
   liveClass   LiveClass @relation(fields: [liveClassId], references: [id])
   studentId   String    @db.ObjectId
   student     Student   @relation(fields: [studentId], references: [id])
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
 }
 
 model Notification {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  type      String
-  isRead    Boolean  @default(false) @map("is_read")
-  message   String
-  user      User     @relation(fields: [userId], references: [id])
-  userId    String   @db.ObjectId
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  type       String
+  isRead     Boolean  @default(false) @map("is_read")
+  message    String
+  user       User     @relation(fields: [userId], references: [id])
+  userId     String   @db.ObjectId
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 }
 
 model Library {
@@ -253,9 +268,9 @@ model Library {
   description   String
   courseId      String   @db.ObjectId
   course        Course   @relation(fields: [courseId], references: [id])
-  fileObjectKey String
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  fileObjectUrl String
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
 }
 
 model Notes {
@@ -264,20 +279,22 @@ model Notes {
   description   String?
   courseId      String   @db.ObjectId
   course        Course   @relation(fields: [courseId], references: [id])
-  fileObjectKey String
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  fileObjectUrl String
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
 }
 
 model Videos {
-  id            String   @id @default(auto()) @map("_id") @db.ObjectId
-  title         String
-  description   String?
-  courseId      String   @db.ObjectId
-  course        Course   @relation(fields: [courseId], references: [id])
-  fileObjectKey String
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id              String        @id @default(auto()) @map("_id") @db.ObjectId
+  title           String
+  description     String?
+  courseId        String        @db.ObjectId
+  course          Course        @relation(fields: [courseId], references: [id])
+  courseLessionId String        @db.ObjectId
+  courseLessuon   CourseLession @relation(fields: [courseLessionId], references: [id])
+  fileObjectUrl   String
+  created_at      DateTime      @default(now())
+  updated_at      DateTime      @updatedAt
 }
 
 model Assignment {
@@ -286,10 +303,10 @@ model Assignment {
   description         String?
   courseId            String                @db.ObjectId
   course              Course                @relation(fields: [courseId], references: [id])
-  fileObjectKey       String
+  fileObjectUrl       String
   dueDate             DateTime              @map("due_date")
-  createdAt           DateTime              @default(now())
-  updatedAt           DateTime              @updatedAt
+  created_at          DateTime              @default(now())
+  updated_at          DateTime              @updatedAt
   AssignmentSubmitted AssignmentSubmitted[]
 }
 
@@ -301,9 +318,9 @@ model AssignmentSubmitted {
   student       Student    @relation(fields: [studentId], references: [id])
   assignmentId  String     @db.ObjectId
   assignment    Assignment @relation(fields: [assignmentId], references: [id])
-  fileObjectKey String
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
+  fileObjectUrl String
+  created_at    DateTime   @default(now())
+  updated_at    DateTime   @updatedAt
 }
 
 model TestResult {
@@ -314,7 +331,46 @@ model TestResult {
   student       Student  @relation(fields: [studentId], references: [id])
   courseId      String   @db.ObjectId
   course        Course   @relation(fields: [courseId], references: [id])
-  fileObjectKey String
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  fileObjectUrl String
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+}
+
+model Advertisement {
+  id          String       @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  description String?
+  fileUrl     String?
+  fileType    FileTypeEnum @default(image)
+  courseId    String?      @db.ObjectId
+  course      Course?      @relation(fields: [courseId], references: [id])
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+}
+
+model CommunityFeed {
+  id        String @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String @db.ObjectId
+  comment   String
+  likeCount Int    @default(0)
+  courseId  String @db.ObjectId
+
+  course Course @relation(fields: [courseId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+}
+
+model CourseLession {
+  id          String @id @default(auto()) @map("_id") @db.ObjectId
+  courseId    String @db.ObjectId
+  lectureName String
+  description String
+  course      Course @relation(fields: [courseId], references: [id])
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  Videos     Videos[]
 }

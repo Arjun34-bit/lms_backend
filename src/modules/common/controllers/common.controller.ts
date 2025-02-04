@@ -54,7 +54,9 @@ export class CommonController {
   }
 
   @Post('resend-verification-link')
-  async resendEmailVerificationLink(@Body() dto: ResendEmailVerificationLinkDto): Promise<ApiResponseT> {
+  async resendEmailVerificationLink(
+    @Body() dto: ResendEmailVerificationLinkDto,
+  ): Promise<ApiResponseT> {
     const data = await this.commonService.resendEmailVerificationLink(dto);
     return this.apiUtilsSevice.make_response(
       data,
