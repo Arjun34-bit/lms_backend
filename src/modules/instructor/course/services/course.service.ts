@@ -103,7 +103,7 @@ export class CourseService {
           },
         },
         orderBy: {
-          createdAt: "desc"
+          created_at: "desc"
         }
       });
       

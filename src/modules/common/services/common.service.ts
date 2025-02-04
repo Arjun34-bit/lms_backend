@@ -104,7 +104,7 @@ export class CommonService {
           ],
         },
         orderBy: {
-          createdAt: 'desc',
+          created_at: 'desc',
         },
         skip: Number(queryDto.limit) * (Number(queryDto.pageNumber) - 1),
         take: Number(queryDto.limit),

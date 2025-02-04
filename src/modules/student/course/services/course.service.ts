@@ -54,24 +54,16 @@ export class CourseService {
       });
 
       // Save order details in database
-      const courseEnroll = await this.prisma.studentCourseEnrolled.create({
+      const courseBuy = await this.prisma.courseBuy.create({
         data: {
           courseId,
           studentId,
-          courseBuy: {
-            create: {
-              razorpayPaymentId: order.id,
-              amount: course.price,
-              status: PaymentStatusEnum.PENDING,
-            },
-          },
-        },
-        include: {
-          courseBuy: true,
-        },
+          amount: course.price,
+          razorpayPaymentId: order.id,
+        }
       });
 
-      return { order, courseEnroll };
+      return { order, courseBuy };
     } catch (error) {
       if (error.statusCode === 500) {
         Logger.error(error?.stack);
@@ -86,11 +78,11 @@ export class CourseService {
         paymentData;
 
       // Fetch order details from DB
-      const order = await this.prisma.courseBuy.findUnique({
+      const courseBuyOrder = await this.prisma.courseBuy.findUnique({
         where: { razorpayPaymentId: razorpay_order_id },
       });
 
-      if (!order) {
+      if (!courseBuyOrder) {
         throw new NotFoundException('Order not found');
       }
 
@@ -103,13 +95,26 @@ export class CourseService {
         throw new BadRequestException('Invalid payment signature');
       }
 
-      // Update payment status in DB
-      await this.prisma.courseBuy.update({
-        where: { razorpayPaymentId: razorpay_order_id },
-        data: {
-          status: PaymentStatusEnum.COMPLETED,
-          razorpayPaymentId: razorpay_payment_id,
+      const courseBuy = await this.prisma.courseBuy.update({
+        where: {
+          id: courseBuyOrder.id
         },
+        data: {
+          status: PaymentStatusEnum.COMPLETED
+        }
+      })
+
+      // Update payment status in DB
+      await this.prisma.studentCourseEnrolled.create({
+        data: {
+          courseId: courseBuy.courseId,
+          studentId: courseBuy.studentId,
+          courseBuy: {
+            connect: {
+              id: courseBuy.id
+            }
+          }
+        }
       });
 
       return { success: true, message: 'Payment verified successfully' };

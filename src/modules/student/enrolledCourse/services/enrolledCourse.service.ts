@@ -20,10 +20,10 @@ export class EnrolledCourseService {
           id: true,
           courseId: true,
           course: true,
-          createdAt: true,
+          created_at: true,
         },
         orderBy: {
-          createdAt: 'desc',
+          created_at: 'desc',
         },
       });
 
