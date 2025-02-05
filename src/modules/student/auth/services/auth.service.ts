@@ -28,7 +28,16 @@ export class AuthService {
   async signupWithEmail(data: SignUpDto) {
     try {
       const existingUser = await this.prisma.user.count({
-        where: { email: data.email?.toLowerCase() },
+        where: {
+          OR: [
+            {
+              email: data.email?.toLowerCase(),
+            },
+            {
+              phoneNumber: data?.phoneNumber,
+            },
+          ],
+        },
       });
       const existingUserInFirebase = await firebaseAuth
         .getUserByEmail(data.email.toLowerCase())
@@ -144,7 +153,7 @@ export class AuthService {
         },
         data: {
           verified: true,
-          firebaseUid: existingUserInFirebase.uid
+          firebaseUid: existingUserInFirebase.uid,
         },
       });
 

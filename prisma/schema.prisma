@@ -373,3 +373,4 @@ model CourseLession {
   updated_at DateTime @updatedAt
   Videos     Videos[]
 }
+

@@ -41,6 +41,7 @@ export class InstructorAuthController {
 
   @Post('google-login')
   async googleLogin(@Body('idToken') idToken: string) {
-    return this.authService.googleLogin(idToken);
+    const data = await this.authService.googleLogin(idToken);
+    return this.apiUtilsSevice.make_response(data);
   }
 }

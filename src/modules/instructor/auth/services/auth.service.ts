@@ -28,7 +28,16 @@ export class AuthService {
   async signup(data: SignUpDto) {
     try {
       const existingUser = await this.prisma.user.count({
-        where: { email: data.email?.toLowerCase() },
+        where: {
+          OR: [
+            {
+              email: data.email?.toLowerCase(),
+            },
+            {
+              phoneNumber: data?.phoneNumber,
+            },
+          ],
+        },
       });
       const existingUserInFirebase = await firebaseAuth
         .getUserByEmail(data.email.toLowerCase())
@@ -166,7 +175,7 @@ export class AuthService {
     }
   }
 
-  async login({ email, password }: LoginDto) {
+  async login({ email, password, rememberMe }: LoginDto) {
     try {
       const user = await this.prisma.user.findUnique({
         where: { email: email.toLowerCase() },
@@ -200,8 +209,10 @@ export class AuthService {
         instructorId: user?.instructor?.id,
       };
 
+      const expiresIn = rememberMe ? "365d": "2d";
+
       return {
-        access_token: this.jwtService.sign(payload),
+        access_token: this.jwtService.sign(payload, { expiresIn }),
         user: payload,
       };
     } catch (error) {
@@ -217,7 +228,6 @@ export class AuthService {
       // Verify the ID token with Firebase Admin SDK
       const decodedToken = await firebaseAuth.verifyIdToken(idToken);
       const { email, name, uid } = decodedToken;
-
       if (!email) {
         throw new BadRequestException('Invalid Google account');
       }
@@ -233,7 +243,6 @@ export class AuthService {
           },
         },
       });
-
       if (!user) {
         // If user doesn't exist, create a new user
         user = await this.prisma.user.create({
@@ -242,6 +251,7 @@ export class AuthService {
             email: email.toLowerCase(),
             password: null, // No password for Google users
             role: RoleEnum.instructor,
+            firebaseUid: uid,
             verified: true,
             instructor: {
               create: {},
@@ -259,7 +269,6 @@ export class AuthService {
         role: user.role,
         instructorId: user?.instructor?.id,
       };
-
       return {
         access_token: this.jwtService.sign(payload),
         user: payload,
