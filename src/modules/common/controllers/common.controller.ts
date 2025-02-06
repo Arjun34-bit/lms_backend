@@ -63,4 +63,16 @@ export class CommonController {
       'Email verification sent successfully',
     );
   }
+
+  @Get('master-data')
+  async allMasterData() {
+    const languages = await this.commonService.getLanguages();
+    const departments = await this.commonService.getDepartments();
+    const categories = await this.commonService.getCategories();
+    return this.apiUtilsSevice.make_response({
+      languages,
+      departments,
+      categories,
+    });
+  }
 }

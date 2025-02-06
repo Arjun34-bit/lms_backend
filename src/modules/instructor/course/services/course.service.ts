@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateCourseDto } from '../dtos/createCourse.dto';
 import { InstructorJwtDto } from '@modules/common/dtos/instructor-jwt.dto';
+import { CourseFilterDto } from '@modules/common/dtos/courseFilter.dto';
 import { AdminApprovalEnum } from '@prisma/client';
 
 @Injectable()
@@ -59,8 +60,18 @@ export class CourseService {
     }
   }
 
-  async getAssignedCourses(user: InstructorJwtDto) {
+  async getAssignedCourses(
+    user: InstructorJwtDto,
+    queryDto: CourseFilterDto,
+  ) {
     try {
+      if (!queryDto.limit) {
+        queryDto.limit = 10;
+      }
+      if (!queryDto.pageNumber) {
+        queryDto.pageNumber = 1;
+      }
+
       const courses = await this.prisma.course.findMany({
         where: {
           InstructorAssignedToCourse: {
@@ -68,9 +79,34 @@ export class CourseService {
               instructorId: user.instructorId,
             },
           },
-          approvalStatus: AdminApprovalEnum.approved
+          AND: [
+            {
+              categoryId: queryDto.categoryId,
+            },
+            {
+              languageId: queryDto.languageId,
+            },
+            {
+              departmentId: queryDto.departmentId,
+            },
+            {
+              subjectId: queryDto.subjectId,
+            },
+            {
+              approvalStatus: queryDto.approvalStatus,
+            },
+          ],
         },
-        include: {
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          level: true,
+          startDate: true,
+          endDate: true,
+          price: true,
+          approvalStatus: true,
+          thumbnailImageUrl: true,
           subject: {
             select: {
               id: true,
@@ -103,11 +139,92 @@ export class CourseService {
           },
         },
         orderBy: {
-          created_at: "desc"
-        }
+          created_at: 'desc',
+        },
+        skip: Number(queryDto.limit) * (Number(queryDto.pageNumber) - 1),
+        take: Number(queryDto.limit),
       });
-      
-      return courses;
+
+      const totalCount = await this.prisma.course.count({
+        where: {
+          InstructorAssignedToCourse: {
+            some: {
+              instructorId: user.instructorId,
+            },
+          },
+          AND: [
+            {
+              categoryId: queryDto.categoryId,
+            },
+            {
+              languageId: queryDto.languageId,
+            },
+            {
+              departmentId: queryDto.departmentId,
+            },
+            {
+              subjectId: queryDto.subjectId,
+            },
+            {
+              approvalStatus: queryDto.approvalStatus,
+            },
+          ],
+        },
+      });
+
+      return {
+        courses,
+        totalCount,
+        limit: queryDto.limit,
+      };
+    } catch (error) {
+      if (error.statusCode === 500) {
+        Logger.error(error?.stack);
+      }
+      throw error;
+    }
+  }
+
+  async assignedCoursesStats(user: InstructorJwtDto) {
+    try {
+      const totalCourses = await this.prisma.course.count({
+        where: {
+          InstructorAssignedToCourse: {
+            some: {
+              instructorId: user.instructorId,
+            },
+          },
+        },
+      });
+
+      const totalPendingCourses = await this.prisma.course.count({
+        where: {
+          InstructorAssignedToCourse: {
+            some: {
+              instructorId: user.instructorId,
+            },
+          },
+          approvalStatus: AdminApprovalEnum.approved
+        },
+      })
+
+      const totalDeclinedCourses = await this.prisma.course.count({
+        where: {
+          InstructorAssignedToCourse: {
+            some: {
+              instructorId: user.instructorId,
+            },
+          },
+          approvalStatus: AdminApprovalEnum.declined
+        },
+      })
+
+
+      return {
+        totalCourses,
+        totalPendingCourses,
+        totalDeclinedCourses
+      };
     } catch (error) {
       if (error.statusCode === 500) {
         Logger.error(error?.stack);

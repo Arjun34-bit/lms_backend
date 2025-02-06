@@ -1,9 +1,15 @@
-import { IsMongoId, IsOptional } from 'class-validator';
+import { AdminApprovalEnum } from '@prisma/client';
+import { IsEnum, IsMongoId, IsOptional } from 'class-validator';
+import { PaginationDto } from 'src/common/dtos/pagination.dto';
 
-export class CourseFilterDto {
+export class CourseFilterDto extends PaginationDto {
   @IsMongoId()
   @IsOptional()
   departmentId?: string;
+
+  @IsOptional()
+  @IsEnum(AdminApprovalEnum)
+  approvalStatus: AdminApprovalEnum;
 
   @IsMongoId()
   @IsOptional()
