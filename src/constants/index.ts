@@ -29,5 +29,11 @@ export const envConstant = {
   RAZORPAY_KEY_SECRET: process.env.RAZORPAY_KEY_SECRET || '',
 
   SENDER_EMAIL: process.env.SENDER_EMAIL || '',
-  SENDER_PASSWORD: process.env.SENDER_PASSWORD || ''
+  SENDER_PASSWORD: process.env.SENDER_PASSWORD || '',
+
+  MINIO_BASE_URL: process.env.MINIO_BASE_URL || '',
+  MINIO_ACCESS_KEY: process.env.MINIO_ACCESS_KEY || '',
+  MINIO_SECRET_KEY: process.env.MINIO_SECRET_KEY || '',
+  PRIVATE_BUCKET_NAME: 'pcc-private',
+  PUBLIC_BUCKET_NAME: 'pcc-public',
 };

@@ -12,6 +12,7 @@ services:
     volumes:
       - mongodb_data:/data/db
       - mongodb_data:/data/configdb
+      - mongodb_key:/data/
       - ./mongo_replica_set.key:/data/mongo_replica_set.key
     entrypoint:
       - bash
@@ -25,4 +26,7 @@ services:
 volumes:
   mongodb_data:
     name: mongodb_data
+    driver: local
+  mongodb_key:
+    name: mongodb_key
     driver: local

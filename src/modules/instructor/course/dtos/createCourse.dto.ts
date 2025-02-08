@@ -49,6 +49,7 @@ export class CreateCourseDto {
   @IsNotEmpty()
   languageId: string;
 
+  @Transform(({ value }) => Number(value))
   @IsNumber()
   @IsNotEmpty()
   price: number;

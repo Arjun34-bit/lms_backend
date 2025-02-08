@@ -4,13 +4,26 @@ import { CreateCourseDto } from '../dtos/createCourse.dto';
 import { InstructorJwtDto } from '@modules/common/dtos/instructor-jwt.dto';
 import { CourseFilterDto } from '@modules/common/dtos/courseFilter.dto';
 import { AdminApprovalEnum } from '@prisma/client';
+import { Multer } from 'multer';
+import { MinioService } from '@modules/common/services/minio.service';
+import { envConstant } from '@constants/index';
 
 @Injectable()
 export class CourseService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly minioService: MinioService,
+  ) {}
 
-  async createCourse(createCourseDto: CreateCourseDto, user: InstructorJwtDto) {
+  async createCourse(
+    createCourseDto: CreateCourseDto,
+    user: InstructorJwtDto,
+    file: Multer.File,
+  ) {
     try {
+      if (!file) {
+        throw new BadRequestException('Please upload thumbnail');
+      }
       const checkCategory = await this.prisma.category.count({
         where: {
           id: createCourseDto.categoryId,
@@ -39,10 +52,17 @@ export class CourseService {
         throw new BadRequestException('Invalid language');
       }
 
+      const uploadedFile = await this.minioService.uploadFile(
+        envConstant.PUBLIC_BUCKET_NAME,
+        file?.buffer,
+        `course_thumbnails/${Date.now()}-${file.originalname}`,
+      );
+
       const course = await this.prisma.course.create({
         data: {
           ...createCourseDto,
           addedById: user.userId,
+          thumbnailId: uploadedFile.fileData.id,
           InstructorAssignedToCourse: {
             create: {
               instructorId: user.instructorId,
@@ -60,10 +80,7 @@ export class CourseService {
     }
   }
 
-  async getAssignedCourses(
-    user: InstructorJwtDto,
-    queryDto: CourseFilterDto,
-  ) {
+  async getAssignedCourses(user: InstructorJwtDto, queryDto: CourseFilterDto) {
     try {
       if (!queryDto.limit) {
         queryDto.limit = 10;
@@ -106,7 +123,7 @@ export class CourseService {
           endDate: true,
           price: true,
           approvalStatus: true,
-          thumbnailImageUrl: true,
+          thumbnail: true,
           subject: {
             select: {
               id: true,
@@ -204,9 +221,9 @@ export class CourseService {
               instructorId: user.instructorId,
             },
           },
-          approvalStatus: AdminApprovalEnum.approved
+          approvalStatus: AdminApprovalEnum.approved,
         },
-      })
+      });
 
       const totalDeclinedCourses = await this.prisma.course.count({
         where: {
@@ -215,15 +232,14 @@ export class CourseService {
               instructorId: user.instructorId,
             },
           },
-          approvalStatus: AdminApprovalEnum.declined
+          approvalStatus: AdminApprovalEnum.declined,
         },
-      })
-
+      });
 
       return {
         totalCourses,
         totalPendingCourses,
-        totalDeclinedCourses
+        totalDeclinedCourses,
       };
     } catch (error) {
       if (error.statusCode === 500) {

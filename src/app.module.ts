@@ -17,8 +17,6 @@ import { LanguageSeederService } from './seeders/language.seeder';
 import { CommonModule } from '@modules/common/common.module';
 import { EmailModule } from '@modules/common/email/email.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
-import { AdminModule } from '@modules/admin/admin.module';
-import { AdminSeederService } from './seeders/admin.seeder';
 
 @Module({
   imports: [
@@ -38,7 +36,6 @@ import { AdminSeederService } from './seeders/admin.seeder';
     }),
     InstructorModule,
     StudentModule,
-    AdminModule,
   ],
   controllers: [AppController],
   providers: [
@@ -47,7 +44,6 @@ import { AdminSeederService } from './seeders/admin.seeder';
     SubjectSeederService,
     CategorySeederService,
     LanguageSeederService,
-    AdminSeederService,
   ],
   exports: [PrismaService],
 })
@@ -57,7 +53,6 @@ export class AppModule implements OnModuleInit {
     private readonly subjectSeederService: SubjectSeederService,
     private readonly categorySeederService: CategorySeederService,
     private readonly languageSeederService: LanguageSeederService,
-    private readonly adminSeederService: AdminSeederService,
   ) {}
 
   async onModuleInit() {
@@ -65,6 +60,5 @@ export class AppModule implements OnModuleInit {
     await this.subjectSeederService.subjectSeed();
     await this.categorySeederService.categorySeed();
     await this.languageSeederService.languageSeed();
-    await this.adminSeederService.adminSeed();
   }
 }

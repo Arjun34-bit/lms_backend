@@ -7,11 +7,14 @@ import { AdminApprovalEnum } from '@prisma/client';
 import { ResendEmailVerificationLinkDto } from '../dtos/resendVerificationLink.dto';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { firebaseAuth } from 'src/config/firebase.config';
+import { FileLinkDto } from '../dtos/fileLink.dto';
+import { MinioService } from './minio.service';
 
 @Injectable()
 export class CommonService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly minioService: MinioService,
     private eventEmitter: EventEmitter2,
   ) {}
 
@@ -209,6 +212,32 @@ export class CommonService {
         role: user.role,
       });
       return null;
+    } catch (error) {
+      if (error.statusCode === 500) {
+        Logger.error(error?.stack);
+      }
+      throw error;
+    }
+  }
+
+  async getFileStream(dto: FileLinkDto) {
+    try {
+      const fileData = await this.prisma.files.findUnique({
+        where: {
+          id: dto.fileId
+        }
+      });
+  
+      if (!fileData) {
+        throw new BadRequestException('File not found');
+      }
+  
+      const stream = await this.minioService.getFileStream(
+        fileData.bucketName,
+        fileData.objectKey,
+      );
+  
+      return stream;
     } catch (error) {
       if (error.statusCode === 500) {
         Logger.error(error?.stack);

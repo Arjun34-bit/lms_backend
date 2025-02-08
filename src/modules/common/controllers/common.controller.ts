@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, Res } from '@nestjs/common';
 import { ApiUtilsService } from '@utils/utils.service';
 import { CommonService } from '../services/common.service';
 import { ApiPaginationResponseT, ApiResponseT } from '@utils/types';
@@ -6,6 +6,8 @@ import { SubjectFilterDto } from '../dtos/subjectFilter.dto';
 import { PaginationDto } from 'src/common/dtos/pagination.dto';
 import { CourseFilterDto } from '../dtos/courseFilter.dto';
 import { ResendEmailVerificationLinkDto } from '../dtos/resendVerificationLink.dto';
+import { FileLinkDto } from '../dtos/fileLink.dto';
+import { Response } from 'express';
 
 @Controller('common')
 export class CommonController {
@@ -74,5 +76,11 @@ export class CommonController {
       departments,
       categories,
     });
+  }
+
+  @Get('image')
+  async renderFile(@Query() dto: FileLinkDto, @Res() res: Response) {
+    const fileStream = await this.commonService.getFileStream(dto);
+    fileStream.pipe(res);
   }
 }

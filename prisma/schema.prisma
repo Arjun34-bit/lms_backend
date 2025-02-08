@@ -36,6 +36,24 @@ enum FileTypeEnum {
   image
 }
 
+model Files {
+  id                  String                @id @default(auto()) @map("_id") @db.ObjectId
+  bucketName          String
+  objectKey           String
+  fileType            FileTypeEnum          @default(image)
+  created_at          DateTime              @default(now())
+  updated_at          DateTime              @updatedAt
+
+  Course              Course[]
+  Library             Library[]
+  Notes               Notes[]
+  Videos              Videos[]
+  Assignment          Assignment[]
+  AssignmentSubmitted AssignmentSubmitted[]
+  TestResult          TestResult[]
+  Advertisement       Advertisement[]
+}
+
 model Department {
   id          String   @id @default(auto()) @map("_id") @db.ObjectId
   name        String   @unique @map("department_name")
@@ -159,27 +177,28 @@ model Student {
 }
 
 model Course {
-  id                String            @id @default(auto()) @map("_id") @db.ObjectId
-  title             String
-  level             CourseLevelEnum
-  description       String?
-  category          Category          @relation(fields: [categoryId], references: [id])
-  categoryId        String            @db.ObjectId
-  startDate         DateTime          @map("start_date")
-  endDate           DateTime          @map("end_date")
-  department        Department        @relation(fields: [departmentId], references: [id])
-  departmentId      String            @db.ObjectId
-  subject           Subject           @relation(fields: [subjectId], references: [id])
-  subjectId         String            @db.ObjectId
-  language          Language          @relation(fields: [languageId], references: [id])
-  languageId        String            @db.ObjectId
-  price             Float
-  thumbnailImageUrl String?
-  addedBy           User?             @relation("AddedCourses", fields: [addedById], references: [id])
-  addedById         String?           @db.ObjectId
-  approvalStatus    AdminApprovalEnum @default(pending)
-  created_at        DateTime          @default(now())
-  updated_at        DateTime          @updatedAt
+  id             String            @id @default(auto()) @map("_id") @db.ObjectId
+  title          String
+  level          CourseLevelEnum
+  description    String?
+  category       Category          @relation(fields: [categoryId], references: [id])
+  categoryId     String            @db.ObjectId
+  startDate      DateTime          @map("start_date")
+  endDate        DateTime          @map("end_date")
+  department     Department        @relation(fields: [departmentId], references: [id])
+  departmentId   String            @db.ObjectId
+  subject        Subject           @relation(fields: [subjectId], references: [id])
+  subjectId      String            @db.ObjectId
+  language       Language          @relation(fields: [languageId], references: [id])
+  languageId     String            @db.ObjectId
+  price          Float
+  thumbnailId    String?           @db.ObjectId
+  thumbnail      Files?            @relation(fields: [thumbnailId], references: [id])
+  addedBy        User?             @relation("AddedCourses", fields: [addedById], references: [id])
+  addedById      String?           @db.ObjectId
+  approvalStatus AdminApprovalEnum @default(pending)
+  created_at     DateTime          @default(now())
+  updated_at     DateTime          @updatedAt
 
   library                    Library[]
   liveClasses                LiveClass[]
@@ -262,25 +281,27 @@ model Notification {
 }
 
 model Library {
-  id            String   @id @default(auto()) @map("_id") @db.ObjectId
-  title         String
-  description   String
-  courseId      String   @db.ObjectId
-  course        Course   @relation(fields: [courseId], references: [id])
-  fileObjectUrl String
-  created_at    DateTime @default(now())
-  updated_at    DateTime @updatedAt
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  description String
+  courseId    String   @db.ObjectId
+  course      Course   @relation(fields: [courseId], references: [id])
+  fileId      String   @db.ObjectId
+  file        Files    @relation(fields: [fileId], references: [id])
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
 }
 
 model Notes {
-  id            String   @id @default(auto()) @map("_id") @db.ObjectId
-  title         String
-  description   String?
-  courseId      String   @db.ObjectId
-  course        Course   @relation(fields: [courseId], references: [id])
-  fileObjectUrl String
-  created_at    DateTime @default(now())
-  updated_at    DateTime @updatedAt
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  description String?
+  courseId    String   @db.ObjectId
+  course      Course   @relation(fields: [courseId], references: [id])
+  fileId      String   @db.ObjectId
+  file        Files    @relation(fields: [fileId], references: [id])
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
 }
 
 model Videos {
@@ -291,7 +312,8 @@ model Videos {
   course          Course        @relation(fields: [courseId], references: [id])
   courseLessionId String        @db.ObjectId
   courseLessuon   CourseLession @relation(fields: [courseLessionId], references: [id])
-  fileObjectUrl   String
+  fileId          String        @db.ObjectId
+  file            Files         @relation(fields: [fileId], references: [id])
   created_at      DateTime      @default(now())
   updated_at      DateTime      @updatedAt
 }
@@ -302,7 +324,8 @@ model Assignment {
   description         String?
   courseId            String                @db.ObjectId
   course              Course                @relation(fields: [courseId], references: [id])
-  fileObjectUrl       String
+  fileId              String                @db.ObjectId
+  file                Files                 @relation(fields: [fileId], references: [id])
   dueDate             DateTime              @map("due_date")
   created_at          DateTime              @default(now())
   updated_at          DateTime              @updatedAt
@@ -310,39 +333,41 @@ model Assignment {
 }
 
 model AssignmentSubmitted {
-  id            String     @id @default(auto()) @map("_id") @db.ObjectId
-  title         String
-  description   String?
-  studentId     String     @db.ObjectId
-  student       Student    @relation(fields: [studentId], references: [id])
-  assignmentId  String     @db.ObjectId
-  assignment    Assignment @relation(fields: [assignmentId], references: [id])
-  fileObjectUrl String
-  created_at    DateTime   @default(now())
-  updated_at    DateTime   @updatedAt
+  id           String     @id @default(auto()) @map("_id") @db.ObjectId
+  title        String
+  description  String?
+  studentId    String     @db.ObjectId
+  student      Student    @relation(fields: [studentId], references: [id])
+  assignmentId String     @db.ObjectId
+  assignment   Assignment @relation(fields: [assignmentId], references: [id])
+  fileId       String     @db.ObjectId
+  file         Files      @relation(fields: [fileId], references: [id])
+  created_at   DateTime   @default(now())
+  updated_at   DateTime   @updatedAt
 }
 
 model TestResult {
-  id            String   @id @default(auto()) @map("_id") @db.ObjectId
-  title         String
-  description   String?
-  studentId     String   @db.ObjectId
-  student       Student  @relation(fields: [studentId], references: [id])
-  courseId      String   @db.ObjectId
-  course        Course   @relation(fields: [courseId], references: [id])
-  fileObjectUrl String
-  created_at    DateTime @default(now())
-  updated_at    DateTime @updatedAt
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  description String?
+  studentId   String   @db.ObjectId
+  student     Student  @relation(fields: [studentId], references: [id])
+  courseId    String   @db.ObjectId
+  course      Course   @relation(fields: [courseId], references: [id])
+  fileId      String   @db.ObjectId
+  file        Files    @relation(fields: [fileId], references: [id])
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
 }
 
 model Advertisement {
-  id          String       @id @default(auto()) @map("_id") @db.ObjectId
+  id          String  @id @default(auto()) @map("_id") @db.ObjectId
   title       String
   description String?
-  fileUrl     String?
-  fileType    FileTypeEnum @default(image)
-  courseId    String?      @db.ObjectId
-  course      Course?      @relation(fields: [courseId], references: [id])
+  fileId      String  @db.ObjectId
+  file        Files   @relation(fields: [fileId], references: [id])
+  courseId    String? @db.ObjectId
+  course      Course? @relation(fields: [courseId], references: [id])
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
@@ -373,4 +398,3 @@ model CourseLession {
   updated_at DateTime @updatedAt
   Videos     Videos[]
 }
-
