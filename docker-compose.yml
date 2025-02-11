@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   mongo:
     image: mongo:8.0
@@ -11,8 +9,7 @@ services:
       - MONGO_INITDB_ROOT_PASSWORD=${MONGO_INITDB_ROOT_PASSWORD}
     volumes:
       - mongodb_data:/data/db
-      - mongodb_data:/data/configdb
-      - mongodb_key:/data/
+      - mongodb_config:/data/configdb
       - ./mongo_replica_set.key:/data/mongo_replica_set.key
     entrypoint:
       - bash
@@ -23,10 +20,28 @@ services:
         exec docker-entrypoint.sh $$@
     command: "mongod --bind_ip_all --replSet rs0 --keyFile /data/mongo_replica_set.key"
 
+  mongo-express:
+    image: mongo-express
+    container_name: mongo-express
+    restart: always
+    ports:
+      - 8082:8081
+    environment:
+      - ME_CONFIG_MONGODB_ADMINUSERNAME=${MONGO_INITDB_ROOT_USERNAME}
+      - ME_CONFIG_MONGODB_ADMINPASSWORD=${MONGO_INITDB_ROOT_PASSWORD}
+      - ME_CONFIG_MONGODB_SERVER=mongo
+      - ME_CONFIG_BASICAUTH_USERNAME=${MONGO_INITDB_ROOT_USERNAME}
+      - ME_CONFIG_BASICAUTH_PASSWORD=${MONGO_INITDB_ROOT_PASSWORD}
+    depends_on:
+      - mongo
+
+
 volumes:
   mongodb_data:
     name: mongodb_data
     driver: local
-  mongodb_key:
-    name: mongodb_key
+  mongodb_config:
+    name: mongodb_config
     driver: local
+
+

@@ -17,6 +17,7 @@ import { LanguageSeederService } from './seeders/language.seeder';
 import { CommonModule } from '@modules/common/common.module';
 import { EmailModule } from '@modules/common/email/email.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
+import { WebSocketModule } from './web-socket/websocket.module';
 
 @Module({
   imports: [
@@ -36,8 +37,9 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
     }),
     InstructorModule,
     StudentModule,
+    WebSocketModule
   ],
-  controllers: [AppController],
+  // controllers: [AppController],
   providers: [
     PrismaService,
     DepartmentSeederService,

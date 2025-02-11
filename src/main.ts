@@ -10,6 +10,8 @@ import {
   UnauthorizedExceptionFilter,
 } from '@filters/exception.filter';
 import { NestExpressApplication } from '@nestjs/platform-express';
+import * as winston from 'winston';
+import LokiTransport from 'winston-loki';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -30,8 +32,21 @@ async function bootstrap() {
 
   app.enableShutdownHooks();
   app.setGlobalPrefix('/api', {
-    exclude: ['/'],
+    exclude: ['/', '/socket.io'],
   });
+
+  // const logger = winston.createLogger({
+  //   transports: [
+  //     new LokiTransport({
+  //       host: 'http://localhost:3100',
+  //       json: true,
+  //       labels: { app: 'pcc-backend' },
+  //     }),
+  //   ],
+  // });
+
+  // logger.info('NestJS Application started');
+  // app.useLogger(logger);
 
   await app.listen(envConstant.PORT, () => {
     console.log(`Open: ${envConstant.BASE_URL}`);

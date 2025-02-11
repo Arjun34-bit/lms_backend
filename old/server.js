@@ -28,7 +28,7 @@ const server = http.createServer(app);
 
 // CORS configuration
 const corsOptions = {
-  origin: process.env.ALLOWED_ORIGIN || "http://localhost:3000", // Default to frontend URL
+  origin: "*", // Default to frontend URL
   methods: ["GET", "POST", "PUT", "DELETE"],
   allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true, // Allow credentials (cookies, authorization headers)

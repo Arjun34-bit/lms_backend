@@ -18,6 +18,7 @@ exports.socketWebhookController = (server) => {
 
     // Handle the instructor connection
     socket.on("joinInstructor", async ({ classId, role }) => {
+      console.log("instructor join", classId, role)
       if (role === "instructor") {
         await redis.set(`instructor:${classId}`, socket.id);
         socket.join(classId);
