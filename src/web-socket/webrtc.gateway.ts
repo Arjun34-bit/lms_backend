@@ -6,8 +6,13 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { Redis } from 'ioredis';
+import { envConstant } from '@constants/index';
 
-const redis = new Redis();
+const redis = new Redis({
+  host: envConstant.REDIS_HOST,
+  port: envConstant.REDIS_PORT,
+  db: envConstant.REDIS_DB
+});
 
 @WebSocketGateway({ cors: true })
 export class WebrtcGateway implements OnGatewayInit {
@@ -102,44 +107,4 @@ export class WebrtcGateway implements OnGatewayInit {
       candidate: payload.candidate,
     });
   }
-
-  // @SubscribeMessage('disconnect')
-  // async handleDisconnect(client: Socket) {
-  //   try {
-  //     console.log(`User with socketId ${client.id} is disconnected`);
-  //     // Check if the disconnected user is an instructor
-  //     const instructorKeys = await redis.keys("instructor:*");
-  //     await Promise.all(
-  //       instructorKeys.map(async (key) => {
-  //         const instructorSocketId = await redis.get(key);
-  //         if (instructorSocketId === client.id) {
-  //           await redis.del(key);
-  //           console.log(`Instructor removed: ${key}`);
-  //         }
-  //       })
-  //     );
-
-  //     // Check if the disconnected user is a student
-  //     const studentKeys = await redis.keys("student:*");
-  //     await Promise.all(
-  //       studentKeys.map(async (classKey) => {
-  //         const students = await redis.hgetall(classKey);
-  //         for (const [studentId, studentData] of Object.entries(students)) {
-  //           try {
-  //             const parsedData = JSON.parse(studentData);
-  //             if (parsedData.socketId === client.id) {
-  //               await redis.hdel(classKey, studentId);
-  //               console.log(`Student removed: ${studentId} from class ${classKey}`);
-  //               break;
-  //             }
-  //           } catch (error) {
-  //             console.error(`Error parsing student data: ${studentData}`, error);
-  //           }
-  //         }
-  //       })
-  //     );
-  //   } catch (error) {
-  //     console.error("Error in disconnect handler:", error);
-  //   }
-  // }
 }
