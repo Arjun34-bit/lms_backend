@@ -18,6 +18,7 @@ import { CommonModule } from '@modules/common/common.module';
 import { EmailModule } from '@modules/common/email/email.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { WebSocketModule } from './web-socket/websocket.module';
+import { ParentModule } from '@modules/parent/parent.module';
 
 @Module({
   imports: [
@@ -37,7 +38,8 @@ import { WebSocketModule } from './web-socket/websocket.module';
     }),
     InstructorModule,
     StudentModule,
-    WebSocketModule
+    WebSocketModule,
+    ParentModule,
   ],
   // controllers: [AppController],
   providers: [
