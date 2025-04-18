@@ -61,37 +61,47 @@ export class ParentAuthService {
         };
     }
 
-    async connectChildren(parentId: string, dto: ConnectChildrenDto) {
-        const students = await this.prisma.student.updateMany({
+    async connectChildren(parentId: any, dto: ConnectChildrenDto) {
+        // First verify the parent exists
+        const parent = await this.prisma.parent.findUnique({
             where: {
-                id: {
-                    in: dto.studentIds
-                }
-            },
+                id: parentId?.id // Using the string ID directly
+            }
+        });
+
+        if (!parent) {
+            throw new BadRequestException('Parent not found');
+        }
+
+        // Connect multiple children to the parent
+        await this.prisma.parent.update({
+            where: { id: parentId?.id },
             data: {
-                parentId: parentId
+                students: {
+                    connect: dto.studentIds.map(id => ({ id }))
+                }
             }
         });
 
         return { message: 'Children connected successfully' };
     }
 
-    async getChildren(parentId: string) {
-        const children = await this.prisma.student.findMany({
+    async getChildren(parentId: any) {
+        const parent = await this.prisma.parent.findUnique({
             where: {
-                parentId: parentId
+                id: parentId?.id || parentId // Handle both object and string cases
             },
             include: {
-                user: {
-                    select: {
-                        name: true,
-                        email: true
-                    }
-                }
+                students: true,
+                user: true
             }
         });
 
-        return { children };
+        if (!parent) {
+            throw new BadRequestException('Parent not found');
+        }
+
+        return { children: parent.students };
     }
 
     private generateToken(parent: any) {

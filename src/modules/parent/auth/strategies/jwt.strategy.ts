@@ -17,8 +17,9 @@ export class JwtParentStrategy extends PassportStrategy(Strategy, 'parent-jwt') 
     }
 
     async validate(payload: any) {
+        console.log(payload);
         const parent = await this.prisma.parent.findUnique({
-            where: { id: payload.id },
+            where: { id: payload.userId || payload.id },
             include: { user: true }
         });
 

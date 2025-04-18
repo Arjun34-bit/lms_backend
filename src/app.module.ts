@@ -57,7 +57,7 @@ export class AppModule implements OnModuleInit {
     private readonly subjectSeederService: SubjectSeederService,
     private readonly categorySeederService: CategorySeederService,
     private readonly languageSeederService: LanguageSeederService,
-  ) {}
+  ) { }
 
   async onModuleInit() {
     await this.departmentSeederService.departmentSeed();

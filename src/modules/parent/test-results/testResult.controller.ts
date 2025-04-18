@@ -1,29 +1,26 @@
 import { Controller, Get, Param, UseGuards } from '@nestjs/common';
-import { CoursesService } from './courses.service';
+import { TestResultsService } from './test-results.service';
 import { JwtParentAuthGuard } from '../auth/guards/jwt-parent.guard';
 import { GetUser } from 'src/common/decorators/user.decorator';
 
-@Controller('parent/courses')
+@Controller('parent/test-results')
 @UseGuards(JwtParentAuthGuard)
-export class CoursesController {
-    constructor(private readonly coursesService: CoursesService) { }
+export class TestResultController {
+    constructor(private readonly testResultsService: TestResultsService) { }
 
     @Get(':studentId')
-
-    getStudentCourses(
+    getResults(
         @GetUser('id') parentId: string,
         @Param('studentId') studentId: string
-
     ) {
-        console.log(parentId, studentId);
-        return this.coursesService.getStudentCourses(parentId, studentId);
+        return this.testResultsService.getResults(parentId, studentId);
     }
 
-    @Get(':studentId/schedules')
-    getSchedules(
+    @Get(':studentId/progress')
+    getProgress(
         @GetUser('id') parentId: string,
         @Param('studentId') studentId: string
     ) {
-        return this.coursesService.getSchedules(parentId, studentId);
+        return this.testResultsService.getProgress(parentId, studentId);
     }
 }
