@@ -7,6 +7,8 @@ import {
 import { Server, Socket } from 'socket.io';
 import { Redis } from 'ioredis';
 import { envConstant } from '@constants/index';
+import { PrismaService } from 'src/prisma/prisma.service';
+import { EmailService } from '@modules/common/email/email.service';
 
 const redis = new Redis({
   host: envConstant.REDIS_HOST,
@@ -17,7 +19,8 @@ const redis = new Redis({
 @WebSocketGateway({ cors: true })
 export class WebrtcGateway implements OnGatewayInit {
   @WebSocketServer() server: Server;
-
+constructor(private prisma: PrismaService,private studentEmailService: EmailService) {
+  }
   afterInit(server: Server) {
     console.log('WebRTC Signaling Server Initialized');
   }
@@ -25,13 +28,47 @@ export class WebrtcGateway implements OnGatewayInit {
   @SubscribeMessage('joinInstructor')
   async handleJoinInstructor(
     client: Socket,
-    payload: { classId: string; role: string },
+    payload: { classId: string; role: string, courseId: string },
   ) {
-    const { classId, role } = payload;
+    const { classId, role,courseId='' } = payload;
+    if(!courseId){
+  this.server.to(client.id).emit('joinInstructorError', {
+    message: `Course ID is required`,
+    classId,
+  } );
+  return;
+    }
     if (role === 'instructor') {
       await redis.set(`instructor:${classId}`, client.id);
       client.join(classId);
       console.log(`Instructor joined class: ${classId}`);
+      //get all  student in courseId
+      const students =await this.prisma.studentCourseEnrolled.findMany({
+        where:{
+          courseId:courseId,
+          courseBuy: {
+         status: 'COMPLETED',   
+          }
+        }, 
+        include:{
+          student:{
+            include:{
+           user:true,  
+            }
+          } 
+        } 
+
+      })
+      if (!students || students.length === 0) {
+        this.server.to(client.id).emit('joinInstructorError', {
+          message: `No students found in course ${courseId}`,
+          classId,
+        });
+        return;
+      }
+      for (const student of students) {
+       this.studentEmailService.sendLiveClassInvitationEmail(student.student.user?.email,courseId); 
+      }
       this.server.to(client.id).emit('joinInstructorResponse', {
         message: `You have joined the class ${classId}`,
         classId,
@@ -71,7 +108,7 @@ export class WebrtcGateway implements OnGatewayInit {
   @SubscribeMessage('signal')
   async handleSignal(
     client: Socket,
-    payload: { userId:string, signal:string },
+    payload: { userId: string, signal: string },
   ) {
     const { userId, signal } = payload;
     this.server.to(userId).emit("signal", { userId: client.id, signal });

@@ -61,21 +61,20 @@ export class ParentAuthService {
         };
     }
 
-    async connectChildren(parentId: any, dto: ConnectChildrenDto) {
+    async connectChildren(parentId: string, dto: ConnectChildrenDto) {
         // First verify the parent exists
         const parent = await this.prisma.parent.findUnique({
             where: {
-                id: parentId?.id // Using the string ID directly
+                id: parentId // Using the string ID directly
             }
         });
-
         if (!parent) {
             throw new BadRequestException('Parent not found');
         }
 
         // Connect multiple children to the parent
         await this.prisma.parent.update({
-            where: { id: parentId?.id },
+            where: { id: parentId },
             data: {
                 students: {
                     connect: dto.studentIds.map(id => ({ id }))

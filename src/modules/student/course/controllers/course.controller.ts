@@ -47,10 +47,12 @@ export class CourseController {
     @Body() dto: BuyCourseDto,
     @GetUser() user: StudentJwtDto,
   ): Promise<ApiResponseT> {
+    console.log(dto);
     const data = await this.courseService.buyCourse(
       user?.studentId,
       dto.courseId,
     );
+
     return this.apiUtilsSevice.make_response(data);
   }
 

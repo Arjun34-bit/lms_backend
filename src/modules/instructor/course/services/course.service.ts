@@ -57,7 +57,9 @@ export class CourseService {
         file?.buffer,
         `course_thumbnails/${Date.now()}-${file.originalname}`,
       );
-
+if (!uploadedFile) {
+        throw new BadRequestException('Failed to upload thumbnail');
+      }
       const course = await this.prisma.course.create({
         data: {
           ...createCourseDto,
@@ -248,4 +250,29 @@ export class CourseService {
       throw error;
     }
   }
+   async getAllCourses(
+    user: InstructorJwtDto, 
+   ){
+    try {
+      const courses = await this.prisma.course.findMany({
+        where: {
+          InstructorAssignedToCourse: {
+            some: {
+              instructorId: user.instructorId,
+
+            },
+          },
+        }, 
+      }) 
+      return courses;
+    }
+    catch(error){
+      if (error.statusCode === 500) {
+        Logger.error(error?.stack);
+      }
+      throw error;
+    }
+
+   }
+
 }

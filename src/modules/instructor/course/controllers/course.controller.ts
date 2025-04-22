@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Query, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { ApiUtilsService } from '@utils/utils.service';
 import { CourseService } from '../services/course.service';
 import JwtInstructorAuthGuard from '@modules/instructor/auth/guards/jwt-auth.guard';
@@ -47,4 +47,12 @@ export class CourseController {
     const data = await this.courseService.assignedCoursesStats(user);
     return this.apiUtilsSevice.make_response(data);
   }
+@Get('all-courses')
+async getAllCourses( 
+  @GetUser() user: InstructorJwtDto,
+){
+  const data = await this.courseService.getAllCourses( user);
+  return this.apiUtilsSevice.make_response(data);
+}
+
 }

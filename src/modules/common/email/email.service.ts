@@ -50,4 +50,25 @@ export class EmailService {
 
     await transporter.sendMail(mailOptions);
   }
+
+  async sendLiveClassInvitationEmail(email: string, link: string) {
+    // Set up Nodemailer
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: envConstant.SENDER_EMAIL,
+        pass: envConstant.SENDER_PASSWORD,
+      },
+      
+    }); 
+    const mailOptions = {
+      from: envConstant.SENDER_EMAIL,
+      to: email,
+      subject: 'Live Class Invitation', 
+    }
+    await transporter.sendMail(mailOptions);
+
+
+  }
+      
 }

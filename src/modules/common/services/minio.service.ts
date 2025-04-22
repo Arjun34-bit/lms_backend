@@ -1,5 +1,5 @@
 import { envConstant } from '@constants/index';
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, InternalServerErrorException } from '@nestjs/common';
 import { FileTypeEnum } from '@prisma/client';
 import { Client } from 'minio';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -9,6 +9,7 @@ export class MinioService {
   private readonly minioClient: Client;
 
   constructor(private readonly prisma: PrismaService) {
+   
     this.minioClient = new Client({
       endPoint: envConstant.MINIO_BASE_URL,
       port: 443,
@@ -26,6 +27,10 @@ export class MinioService {
     fileType: FileTypeEnum = FileTypeEnum.image,
   ) {
     try {
+      if (!buffer) {
+        throw new InternalServerErrorException('File buffer is empty or undefined');
+      }
+      
       await this.minioClient.putObject(bucket, objectKey, buffer);
       const fileData = await this.prisma.files.create({
         data: {
@@ -40,7 +45,9 @@ export class MinioService {
         objectKey,
       };
     } catch (error) {
+      console.log(error);
       Logger.error(error?.stack);
+      throw new InternalServerErrorException('Failed to upload thumbnail: ' + error.message);
     }
   }
 
