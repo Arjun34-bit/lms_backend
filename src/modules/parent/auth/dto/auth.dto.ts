@@ -28,3 +28,14 @@ export class ConnectChildrenDto {
     @IsNotEmpty({ each: true })
     studentIds: string[];
 }
+export class DisconnectChildrenDto {
+    @IsArray()
+    @IsNotEmpty({ each: true })
+    studentIds: string[];
+}
+
+export class LoginWithPhoneNumberDto {
+    @IsString()
+    @IsNotEmpty()
+    idToken: string;
+  }

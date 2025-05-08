@@ -1,12 +1,21 @@
-import { Body, Controller, Post, UseGuards, Get, Param } from '@nestjs/common';
+import { Body, Controller, Post, UseGuards, Get, Param, Query, Res } from '@nestjs/common';
 import { ParentAuthService } from '../services/auth.service';
-import { ConnectChildrenDto, ParentSigninDto, ParentSignupDto } from '../dto/auth.dto';
+import { ConnectChildrenDto, DisconnectChildrenDto, LoginWithPhoneNumberDto, ParentSigninDto, ParentSignupDto } from '../dto/auth.dto';
 import { GetUser } from 'src/common/decorators/user.decorator';
 import { JwtParentAuthGuard } from '../guards/jwt-parent.guard';
+import { envConstant } from '@constants/index';
+import { VerifyEmailDto } from '../dto/verifyemail.dto';
+import { Response } from 'express';
+import { ApiUtilsService } from '@utils/utils.service';
 
 @Controller('parent/auth')
 export class ParentAuthController {
-    constructor(private readonly authService: ParentAuthService) { }
+    constructor(private readonly authService: ParentAuthService
+   , private readonly apiUtilsSevice: ApiUtilsService,
+    
+    ) {
+
+     }
 
     @Post('signup')
     async signup(@Body() dto: ParentSignupDto) {
@@ -16,6 +25,11 @@ export class ParentAuthController {
     @Post('signin')
     async signin(@Body() dto: ParentSigninDto) {
         return this.authService.signin(dto);
+    }
+    @Post('login-with-phone-number')
+    async loginWithPhoneNumber(@Body() body: LoginWithPhoneNumberDto) {
+      const data = this.authService.loginWithPhoneNumber(body.idToken);
+      return this.apiUtilsSevice.make_response(data);
     }
 
     @UseGuards(JwtParentAuthGuard)
@@ -27,9 +41,25 @@ export class ParentAuthController {
         return this.authService.connectChildren(parentId, dto);
     }
 
+
+
+    @UseGuards(JwtParentAuthGuard)
+    @Post('disconnect-children')
+    async disconnectChildren(
+        @GetUser('id') parentId: string,
+        @Body() dto: DisconnectChildrenDto
+    ) {
+        return this.authService.disconnectChildren(parentId, dto);
+    }
+
     @UseGuards(JwtParentAuthGuard)
     @Get('children')
     async getChildren(@GetUser('id') parentId: string) {
         return this.authService.getChildren(parentId);
+    }
+    @Get('verify-email')
+    async verifyEmail(@Query() queryDto: VerifyEmailDto, @Res() res: Response) {
+      const data = await this.authService.verifyEmail(queryDto.token);
+      return res.redirect(`${envConstant.CLIENT_BASE_URL}/student/verified?message=${data.message}`)
     }
 }

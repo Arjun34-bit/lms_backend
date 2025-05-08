@@ -222,7 +222,57 @@ export class AuthService {
       throw error;
     }
   }
+  async loginWithPhoneNumber(idToken: string) {
+    try {
+      const decodedToken = await firebaseAuth.verifyIdToken(idToken);
+      const firebaseUser = await firebaseAuth.getUser(decodedToken.uid);
 
+      let user = await this.prisma.user.findFirst({
+        where: { firebaseUid: firebaseUser.uid },
+      });
+
+      if (!user) {
+        user = await this.prisma.user.create({
+          data: {
+            name: firebaseUser.displayName ?? 'Unknown User',
+            email: firebaseUser.email ?? null,
+            role: RoleEnum.instructor,
+            firebaseUid: firebaseUser.uid,
+            verified: true, // Mark as verified
+            instructor: {
+              create: {},
+            },
+          },
+        });
+      }
+      const instructor = await this.prisma.instructor.findUnique({
+        where: {
+          userId: user.id,
+        },
+        select: {
+          id: true,
+        },
+      });
+      // Payload to return after verification/login/signup
+      const payload = {
+        userId: user.id,
+        name: user.name,
+        email: user.email,
+        role: RoleEnum.instructor,
+        instructorId: instructor?.id,
+      };
+
+      return {
+        access_token: this.jwtService.sign(payload),
+        user: payload,
+      };
+    } catch (error) {
+      if (error.statusCode === 500) {
+        Logger.error(error?.stack);
+      }
+      throw error;
+    }
+  }
   async googleLogin(idToken: string) {
     try {
       // Verify the ID token with Firebase Admin SDK

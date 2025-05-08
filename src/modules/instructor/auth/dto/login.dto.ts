@@ -12,4 +12,12 @@ export class LoginDto {
   @IsBoolean()
   @IsOptional()
   rememberMe?: boolean;
+
+  
+}
+
+export class LoginWithPhoneNumberDto {
+  @IsString()
+  @IsNotEmpty()
+  idToken: string;
 }

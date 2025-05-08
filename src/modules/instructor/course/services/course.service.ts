@@ -250,29 +250,43 @@ if (!uploadedFile) {
       throw error;
     }
   }
-   async getAllCourses(
-    user: InstructorJwtDto, 
-   ){
-    try {
-      const courses = await this.prisma.course.findMany({
-        where: {
-          InstructorAssignedToCourse: {
-            some: {
-              instructorId: user.instructorId,
 
-            },
-          },
-        }, 
-      }) 
-      return courses;
-    }
-    catch(error){
-      if (error.statusCode === 500) {
-        Logger.error(error?.stack);
+  
+  async getAllCourses(user: InstructorJwtDto) {
+    // 1) Fetch all fields for each course
+    const courses = await this.prisma.course.findMany({
+      where: {
+        InstructorAssignedToCourse: { some: { instructorId: user.instructorId } },
+      },
+    });
+  
+   const enriched = await Promise.all(
+  courses.map(async ({ thumbnailId, ...rest }) => {
+    let thumbnailUrl = null;
+    if (thumbnailId) {
+      const fileRecord = await this.prisma.files.findUnique({
+        where: { id: thumbnailId },
+        select: { objectKey: true },
+      });
+      if (fileRecord && fileRecord.objectKey) {
+        thumbnailUrl = await this.minioService.getFileUrl(
+          envConstant.PUBLIC_BUCKET_NAME,
+          fileRecord.objectKey,
+        );
       }
-      throw error;
     }
+    return {
+      ...rest,
+      thumbnailUrl,
+    };
+  }),
+);
 
-   }
+  
+    return enriched;
+  }
+  
+  
+  
 
 }

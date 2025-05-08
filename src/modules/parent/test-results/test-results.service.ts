@@ -12,7 +12,6 @@ export class TestResultsService {
                 student: { parentId }
             },
             include: {
-                // test: true, // Removed as it does not exist in TestResultInclude
                 course: true
             }
         });

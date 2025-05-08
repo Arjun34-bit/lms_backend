@@ -16,7 +16,7 @@ export class AttendanceService {
                     include: { course: true }
                 }
             }
-        });
+        }); 
     }
 
     async getParticipation(parentId: string, studentId: string) {

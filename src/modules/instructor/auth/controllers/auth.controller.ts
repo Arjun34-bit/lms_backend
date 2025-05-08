@@ -3,8 +3,7 @@ import { ApiResponseT } from '@utils/types';
 import { ApiUtilsService } from '@utils/utils.service';
 import { AuthService } from '../services/auth.service';
 import { SignUpDto } from '../dto/signup.dto';
-import { LoginDto } from '../dto/login.dto';
-import { Public } from 'src/common/decorators/public.decorator';
+import { LoginDto, LoginWithPhoneNumberDto } from '../dto/login.dto';
 import { VerifyEmailDto } from '../dto/verifyEmail.dto';
 import { Response } from 'express';
 import { envConstant } from '@constants/index';
@@ -31,6 +30,11 @@ export class InstructorAuthController {
     return res.redirect(
       `${envConstant.CLIENT_BASE_URL}/instructor/verified?message=${data.message}`,
     );
+  }
+  @Post('login-with-phone-number')
+  async loginWithPhoneNumber(@Body() body: LoginWithPhoneNumberDto) {
+    const data = this.authService.loginWithPhoneNumber(body.idToken);
+    return this.apiUtilsSevice.make_response(data);
   }
 
   @Post('login')
