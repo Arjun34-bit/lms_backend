@@ -118,6 +118,7 @@ model User {
   scheduledLiveClasses LiveClass[]     @relation("ScheduledClasses")
   notifications        Notification[]
   CommunityFeed        CommunityFeed[]
+  addedMeetings        Meeting[]       @relation("AddedMeetings")
 }
 
 model Admin {
@@ -334,31 +335,60 @@ model Videos {
 }
 
 model Assignment {
-  id                  String                @id @default(auto()) @map("_id") @db.ObjectId
-  title               String
-  description         String?
-  courseId            String                @db.ObjectId
-  course              Course                @relation(fields: [courseId], references: [id])
-  fileId              String                @db.ObjectId
-  file                Files                 @relation(fields: [fileId], references: [id])
-  dueDate             DateTime              @map("due_date")
-  created_at          DateTime              @default(now())
-  updated_at          DateTime              @updatedAt
-  AssignmentSubmitted AssignmentSubmitted[]
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  subject     Subject  @relation(fields: [subjectId], references: [id])
+  subjectId   String   @db.ObjectId
+  question    String
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
 }
 
-model AssignmentSubmitted {
-  id           String     @id @default(auto()) @map("_id") @db.ObjectId
-  title        String
-  description  String?
-  studentId    String     @db.ObjectId
-  student      Student    @relation(fields: [studentId], references: [id])
-  assignmentId String     @db.ObjectId
-  assignment   Assignment @relation(fields: [assignmentId], references: [id])
-  fileId       String     @db.ObjectId
-  file         Files      @relation(fields: [fileId], references: [id])
-  created_at   DateTime   @default(now())
-  updated_at   DateTime   @updatedAt
+model Teacher {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  subject     Subject  @relation(fields: [subjectId], references: [id])
+  subjectId   String   @db.ObjectId
+  image       Files    @relation(fields: [imageId], references: [id])
+  imageId     String   @db.ObjectId
+  phoneNumber String
+  email       String   @unique
+  address     String
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+}
+
+model Student {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  class       String
+  image       Files    @relation(fields: [imageId], references: [id])
+  imageId     String   @db.ObjectId
+  mobileNo    String
+  email       String   @unique
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+}
+
+model Test {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  subject     Subject  @relation(fields: [subjectId], references: [id])
+  subjectId   String   @db.ObjectId
+  testNo      String
+  question    String
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+}
+
+model PCCCenter {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  email       String   @unique
+  image       Files    @relation(fields: [imageId], references: [id])
+  imageId     String   @db.ObjectId
+  mobileNo    String
+  address     String
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
 }
 
 model TestResult {
@@ -373,6 +403,7 @@ model TestResult {
   file        Files    @relation(fields: [fileId], references: [id])
   created_at  DateTime @default(now())
   updated_at  DateTime @updatedAt
+  marks       Int 
 }
 
 model Advertisement {
@@ -412,4 +443,14 @@ model CourseLession {
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
   Videos     Videos[]
+}
+
+model Meeting {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  meetingUrl  String   @map("meeting_url")
+  createdBy   User     @relation("AddedMeetings", fields: [createdById], references: [id])
+  createdById String   @db.ObjectId
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
 }
