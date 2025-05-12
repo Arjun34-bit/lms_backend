@@ -359,6 +359,7 @@ model Videos {
 
 model Assignment {
   id                  String                @id @default(auto()) @map("_id") @db.ObjectId
+  name                String // Added assignment name
   subject             Subject               @relation(fields: [subjectId], references: [id])
   subjectId           String                @db.ObjectId
   question            String

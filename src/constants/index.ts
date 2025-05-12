@@ -35,5 +35,9 @@ export const envConstant = {
   MINIO_ACCESS_KEY: process.env.MINIO_ACCESS_KEY || '',
   MINIO_SECRET_KEY: process.env.MINIO_SECRET_KEY || '',
   PRIVATE_BUCKET_NAME: 'pcc-private',
+
+  ADMIN_EMAIL: process.env.ADMIN_EMAIL || 'admin@example.com',
+  ADMIN_PASSWORD: process.env.ADMIN_PASSWORD || 'admin123', // For development fallback if hash is not set
+  ADMIN_PASSWORD_HASH: process.env.ADMIN_PASSWORD_HASH || '', // Store pre-hashed password here for production
   PUBLIC_BUCKET_NAME: 'pcc-public',
 };
