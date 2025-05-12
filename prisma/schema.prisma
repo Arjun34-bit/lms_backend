@@ -38,12 +38,12 @@ enum FileTypeEnum {
 }
 
 model Files {
-  id                  String                @id @default(auto()) @map("_id") @db.ObjectId
-  bucketName          String
-  objectKey           String
-  fileType            FileTypeEnum          @default(image)
-  created_at          DateTime              @default(now())
-  updated_at          DateTime              @updatedAt
+  id         String       @id @default(auto()) @map("_id") @db.ObjectId
+  bucketName String
+  objectKey  String
+  fileType   FileTypeEnum @default(image)
+  created_at DateTime     @default(now())
+  updated_at DateTime     @updatedAt
 
   Course              Course[]
   Library             Library[]
@@ -53,6 +53,23 @@ model Files {
   AssignmentSubmitted AssignmentSubmitted[]
   TestResult          TestResult[]
   Advertisement       Advertisement[]
+  Student             Student[]
+  Teacher             Teacher[]
+  PCCCenter           PCCCenter[]
+}
+
+model AssignmentSubmitted {
+  id           String     @id @default(auto()) @map("_id") @db.ObjectId
+  title        String
+  description  String?
+  studentId    String     @db.ObjectId
+  student      Student    @relation(fields: [studentId], references: [id])
+  assignmentId String     @db.ObjectId
+  assignment   Assignment @relation(fields: [assignmentId], references: [id])
+  fileId       String     @db.ObjectId
+  file         Files      @relation(fields: [fileId], references: [id])
+  created_at   DateTime   @default(now())
+  updated_at   DateTime   @updatedAt
 }
 
 model Department {
@@ -78,6 +95,9 @@ model Subject {
 
   instructorSubject InstructorSubject[]
   courses           Course[]
+  Assignment        Assignment[]
+  Teacher           Teacher[]
+  Test              Test[]
 }
 
 model Category {
@@ -109,6 +129,7 @@ model User {
   verified    Boolean  @default(false)
   created_at  DateTime @default(now())
   updated_at  DateTime @updatedAt
+  address              String?
 
   admin                Admin?
   instructor           Instructor?
@@ -167,16 +188,12 @@ model InstructorAssignedToCourse {
 
 model Student {
   id                    String                  @id @default(auto()) @map("_id") @db.ObjectId
-  name                 String
   class                 String
   image                 Files                   @relation(fields: [imageId], references: [id])
   imageId               String                  @db.ObjectId
-  mobileNo              String
-  email                 String                  @unique
   user                  User                    @relation(fields: [userId], references: [id])
   userId                String                  @unique @db.ObjectId
-  address               String?
-  parentId              String?                 @db.ObjectId @map("parent_id")
+  parentId              String?                 @map("parent_id") @db.ObjectId
   parent                Parent?                 @relation(fields: [parentId], references: [id])
   created_at            DateTime                @default(now())
   updated_at            DateTime                @updatedAt
@@ -185,7 +202,6 @@ model Student {
   AssignmentSubmitted   AssignmentSubmitted[]
   TestResult            TestResult[]
   CourseBuy             CourseBuy[]
-  
 }
 
 model Parent {
@@ -257,7 +273,7 @@ model CourseBuy {
   courseEnrollmentId String?                @unique @db.ObjectId
   amount             Float
   status             PaymentStatusEnum      @default(PENDING)
-  razorpayPaymentId  String?                 @unique
+  razorpayPaymentId  String?                @unique
   razorpayOrderId    String                 @unique
   created_at         DateTime               @default(now())
   updated_at         DateTime               @updatedAt
@@ -342,12 +358,17 @@ model Videos {
 }
 
 model Assignment {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  subject     Subject  @relation(fields: [subjectId], references: [id])
-  subjectId   String   @db.ObjectId
-  question    String
-  created_at  DateTime @default(now())
-  updated_at  DateTime @updatedAt
+  id                  String                @id @default(auto()) @map("_id") @db.ObjectId
+  subject             Subject               @relation(fields: [subjectId], references: [id])
+  subjectId           String                @db.ObjectId
+  question            String
+  created_at          DateTime              @default(now())
+  updated_at          DateTime              @updatedAt
+  Files               Files?                @relation(fields: [filesId], references: [id])
+  filesId             String?               @db.ObjectId
+  AssignmentSubmitted AssignmentSubmitted[]
+  Course              Course?               @relation(fields: [courseId], references: [id])
+  courseId            String?               @db.ObjectId
 }
 
 model Teacher {
@@ -365,25 +386,25 @@ model Teacher {
 }
 
 model Test {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  subject     Subject  @relation(fields: [subjectId], references: [id])
-  subjectId   String   @db.ObjectId
-  testNo      String
-  question    String
-  created_at  DateTime @default(now())
-  updated_at  DateTime @updatedAt
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  subject    Subject  @relation(fields: [subjectId], references: [id])
+  subjectId  String   @db.ObjectId
+  testNo     String
+  question   String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 }
 
 model PCCCenter {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  name        String
-  email       String   @unique
-  image       Files    @relation(fields: [imageId], references: [id])
-  imageId     String   @db.ObjectId
-  mobileNo    String
-  address     String
-  created_at  DateTime @default(now())
-  updated_at  DateTime @updatedAt
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  name       String
+  email      String   @unique
+  image      Files    @relation(fields: [imageId], references: [id])
+  imageId    String   @db.ObjectId
+  mobileNo   String
+  address    String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 }
 
 model TestResult {
@@ -398,7 +419,7 @@ model TestResult {
   file        Files    @relation(fields: [fileId], references: [id])
   created_at  DateTime @default(now())
   updated_at  DateTime @updatedAt
-  marks       Int 
+  marks       Int
 }
 
 model Advertisement {

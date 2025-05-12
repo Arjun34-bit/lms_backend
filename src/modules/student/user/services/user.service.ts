@@ -21,11 +21,11 @@ export class UserService {
           phoneNumber: true,
           firebaseUid: true,
           role: true,
+          address: true,
           verified: true,
           student: {
             select: {
               id: true,
-              address: true,
               studentCourseEnrolled: {
                 select: {
                   course: {

@@ -34,21 +34,17 @@ export class MinioService {
       }
       
       const contentType = mime.lookup(objectKey) || 'application/octet-stream';
-      const fileName = encodeURIComponent(objectKey.split('/').pop() || objectKey);
-      const disposition = forDownload ? `attachment; filename*=UTF-8''${fileName}` : 'inline';
-
-      const metadata = {
-        'Content-Type': contentType,
-        'Content-Disposition': disposition,
-        'Cache-Control': 'max-age=86400'
-      };
+      const disposition = forDownload ? `attachment; filename="${objectKey}"` : 'inline';
 
       await this.minioClient.putObject(
         bucket,
         objectKey,
         buffer,
         buffer.length,
-        metadata
+        {
+          'Content-Type': contentType,
+          'Content-Disposition': disposition
+        }
       );
       const fileData = await this.prisma.files.create({
         data: {
@@ -79,12 +75,10 @@ export class MinioService {
         return `https://${envConstant.MINIO_BASE_URL}/${bucket}/${objectKey}`;
       }
       const contentType = mime.lookup(objectKey) || 'application/octet-stream';
-      const fileName = encodeURIComponent(objectKey.split('/').pop() || objectKey);
-      const disposition = forDownload ? `attachment; filename*=UTF-8''${fileName}` : 'inline';
+      const disposition = forDownload ? `attachment; filename="${objectKey}"` : 'inline';
       const reqParams = {
         'Content-Type': contentType,
-        'response-content-disposition': disposition,
-        'response-cache-control': 'max-age=86400'
+        'response-content-disposition': disposition
       };
       return this.minioClient.presignedGetObject(bucket, objectKey, 24 * 60 * 60, reqParams);
     } catch (error) {

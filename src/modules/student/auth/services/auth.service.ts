@@ -90,9 +90,7 @@ export class AuthService {
           role: RoleEnum.student,
           verified: userInFirebase.emailVerified,
           firebaseUid: userInFirebase.uid,
-          student: {
-            create: {},
-          },
+          student: {},
         },
         update: {
           name: data.name,
@@ -101,9 +99,7 @@ export class AuthService {
           role: RoleEnum.student,
           verified: userInFirebase.emailVerified,
           firebaseUid: userInFirebase.uid,
-          student: {
-            create: {},
-          },
+          student: {},
         },
       });
 
@@ -187,9 +183,7 @@ export class AuthService {
             role: RoleEnum.student,
             firebaseUid: firebaseUser.uid,
             verified: true, // Mark as verified
-            student: {
-              create: {},
-            },
+            student: {},
           },
         });
       }
@@ -312,9 +306,7 @@ export class AuthService {
             password: null,
             verified: true,
             role: RoleEnum.student,
-            student: {
-              create: {},
-            },
+            student: {},
             // googleId: uid, // Save Firebase UID for reference
           },
         });
