@@ -31,15 +31,16 @@ export class InstructorAuthController {
       `${envConstant.CLIENT_BASE_URL}/instructor/verified?message=${data.message}`,
     );
   }
-  @Post('login-with-phone-number')
-  async loginWithPhoneNumber(@Body() body: LoginWithPhoneNumberDto) {
-    const data = this.authService.loginWithPhoneNumber(body.idToken);
-    return this.apiUtilsSevice.make_response(data);
-  }
 
   @Post('login')
   async login(@Body() loginDto: LoginDto): Promise<ApiResponseT> {
     const data = await this.authService.login(loginDto);
+    return this.apiUtilsSevice.make_response(data);
+  }
+
+  @Post('login-with-phone-number')
+  async loginWithPhoneNumber(@Body() body: LoginWithPhoneNumberDto) {
+    const data = await this.authService.loginWithPhoneNumber(body.idToken);
     return this.apiUtilsSevice.make_response(data);
   }
 

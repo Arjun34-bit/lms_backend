@@ -60,6 +60,6 @@ export class ParentAuthController {
     @Get('verify-email')
     async verifyEmail(@Query() queryDto: VerifyEmailDto, @Res() res: Response) {
       const data = await this.authService.verifyEmail(queryDto.token);
-      return res.redirect(`${envConstant.CLIENT_BASE_URL}/student/verified?message=${data.message}`)
+      return res.redirect(`${envConstant.CLIENT_BASE_URL}/parent/verified?message=${data.message}`)
     }
 }
