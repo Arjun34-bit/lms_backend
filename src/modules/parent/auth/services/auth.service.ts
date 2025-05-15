@@ -3,12 +3,13 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { ParentSignupDto, ParentSigninDto, ConnectChildrenDto, DisconnectChildrenDto } from '../dto/auth.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { firebaseAuth } from 'src/config/firebase.config';
+
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import e from 'express';
 import { RoleEnum } from '@prisma/client';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
+import { firebaseAuth } from 'src/config/firebase.config';
 
 
 
@@ -21,45 +22,20 @@ export class ParentAuthService {
     @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
 
   ) { }
-
   async signup(dto: ParentSignupDto) {
     const existingParent = await this.prisma.user.findUnique({
       where: {
         email: dto.email
       },
+    });
 
-    })
-
-    const existingUserInFirebase = await firebaseAuth
-      .getUserByEmail(dto.email.toLowerCase())
-      .then((user) => user)
-      .catch((error) =>
-        error.code === 'auth/user-not-found'
-          ? null
-          : Promise.reject(
-            new BadRequestException('Firebase error:' + error.message),
-          ),
-      );
-    if (existingParent && existingUserInFirebase) {
+    if (existingParent) {
       throw new BadRequestException('Email already exists');
-    }
-
-    let user;
-    if (existingUserInFirebase) {
-      user = await firebaseAuth.updateUser(existingUserInFirebase.uid, {
-        password: dto.password,
-        displayName: dto.name,
-      });
-    }
-    else {
-      user = await firebaseAuth.createUser({
-        email: dto.email,
-        password: dto.password,
-        displayName: dto.name,
-      });
-    }
-
-    const hashedPassword = await bcrypt.hash(dto.password, 10);
+    }    const hashedPassword = await bcrypt.hash(dto.password, 10);
+    const verificationToken = this.jwtService.sign(
+      { email: dto.email, role: RoleEnum.parent },
+      { expiresIn: '1h' }
+    );
 
     const parent = await this.prisma.parent.create({
       data: {
@@ -68,8 +44,8 @@ export class ParentAuthService {
             email: dto.email,
             password: hashedPassword,
             name: dto.name,
-            role: RoleEnum.parent
-
+            role: RoleEnum.parent,
+            verified: false
           }
         },
         address: dto.address,
@@ -79,6 +55,16 @@ export class ParentAuthService {
         students: true,
       }
     });
+
+    // Store verification token in cache
+    await this.cacheManager.set(
+      `user-verification:${verificationToken}`,
+      JSON.stringify({
+        email: dto.email,
+        role: RoleEnum.parent,
+      }),
+      60 * 60 * 1000 // 1 hour expiry
+    );
 
     this.eventEmitter.emit('user.sendVerificationLink', {
       email: parent.user.email,
@@ -90,7 +76,6 @@ export class ParentAuthService {
       parent: this.sanitizeParent(parent)
     };
   }
-
   async verifyEmail(verificationToken: string) {
     try {
       const cacheKey = `user-verification:${verificationToken}`;
@@ -100,17 +85,6 @@ export class ParentAuthService {
       }
       const user = JSON.parse(userData);
 
-      const existingUserInFirebase = await firebaseAuth
-        .getUserByEmail(user?.email?.toLowerCase())
-        .then((user) => user)
-        .catch((error) =>
-          error.code === 'auth/user-not-found'
-            ? null
-            : Promise.reject(
-              new BadRequestException('Firebase error: ' + error.message),
-            ),
-        );
-
       const userUpdated = await this.prisma.user.update({
         where: {
           email: user?.email,
@@ -118,13 +92,11 @@ export class ParentAuthService {
         },
         data: {
           verified: true,
-          firebaseUid: existingUserInFirebase.uid,
         },
       });
 
-      await firebaseAuth.updateUser(userUpdated.firebaseUid, {
-        emailVerified: true,
-      });
+      // Remove the verification token from cache after successful verification
+      await this.cacheManager.del(cacheKey);
 
       return { message: 'Parent account has been verified successfully' };
     } catch (error) {
@@ -133,8 +105,7 @@ export class ParentAuthService {
       }
       throw error;
     }
-  }
-  async loginWithPhoneNumber(idToken: string) {
+  }  async loginWithPhoneNumber(idToken: string) {
     try {
       const decodedToken = await firebaseAuth.verifyIdToken(idToken);
       const firebaseUser = await firebaseAuth.getUser(decodedToken.uid);
@@ -150,7 +121,7 @@ export class ParentAuthService {
             email: firebaseUser.email ?? null,
             role: RoleEnum.parent,
             firebaseUid: firebaseUser.uid,
-            verified: true, // Mark as verified
+            verified: true, // Phone-based login is automatically verified
             parent: {
               create: {},
             },
@@ -184,8 +155,7 @@ export class ParentAuthService {
       }
       throw error;
     }
-  }
-  async signin(dto: ParentSigninDto) {
+  }  async signin(dto: ParentSigninDto) {
     const parent = await this.prisma.parent.findFirst({
       where: {
         user: {
@@ -197,21 +167,14 @@ export class ParentAuthService {
         students: true
       }
     });
-    const fireAuthUser = await firebaseAuth
-      .getUserByEmail(parent?.user.email.toLowerCase())
-      .then((user) => user)
-      .catch((error) =>
-        error.code === 'auth/user-not-found'
-          ? null
-          : Promise.reject(
-            new BadRequestException('Firebase error:' + error.message),
-          ),
-      );
-
-
 
     if (!parent || !await bcrypt.compare(dto.password, parent.user.password)) {
       throw new UnauthorizedException('Invalid credentials');
+    }
+
+    // Check if the user is verified
+    if (!parent.user.verified) {
+      throw new UnauthorizedException('Please verify your email before logging in');
     }
 
     return {
