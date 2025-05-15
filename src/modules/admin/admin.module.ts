@@ -4,6 +4,7 @@ import { PrismaModule } from 'src/prisma/prisma.module';
 import { AdminAuthModule } from './auth/auth.module';
 import { CategoryModule } from './category/category.module'; // Added import
 import { TestModule } from './test/test.module';
+import { AssignmentModule } from './assignment/assignment.module';
 
 
 @Module({
@@ -11,8 +12,8 @@ import { TestModule } from './test/test.module';
          PrismaModule,
         AdminAuthModule,
         CategoryModule ,// Added CategoryModule to imports
-        TestModule
-     
+        TestModule,
+     AssignmentModule,     
     ],
 })
 export class AdminModule { }
