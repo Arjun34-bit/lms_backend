@@ -391,6 +391,7 @@ model Test {
   subject    Subject  @relation(fields: [subjectId], references: [id])
   subjectId  String   @db.ObjectId
   question   String
+  TestNo     String
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 }
