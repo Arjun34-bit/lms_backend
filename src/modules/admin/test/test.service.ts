@@ -23,7 +23,7 @@ export class TestService {
     return this.prisma.test.create({
       data: {
         subjectId: subject.id,
-        testNo: testNumber.toString(),
+        TestNo: testNumber.toString(),
         question: questions.map(q => q.question).join('\n')
       },
       include: {
@@ -86,7 +86,7 @@ export class TestService {
     }
     
     if (testNumber !== undefined) {
-      updateData.testNo = testNumber.toString();
+      updateData.TestNo = testNumber.toString();
     }
     
     if (questions) {
