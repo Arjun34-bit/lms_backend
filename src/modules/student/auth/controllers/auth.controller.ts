@@ -4,7 +4,6 @@ import { ApiUtilsService } from '@utils/utils.service';
 import { AuthService } from '../services/auth.service';
 import { SignUpDto } from '../dto/signup.dto';
 import { LoginDto, LoginWithPhoneNumberDto } from '../dto/login.dto';
-import { Public } from 'src/common/decorators/public.decorator';
 import { VerifyEmailDto } from '@modules/student/auth/dto/verifyEmail.dto';
 import { Response } from 'express';
 import { envConstant } from '@constants/index';
@@ -27,7 +26,7 @@ export class StudentAuthController {
 
   @Post('login-with-phone-number')
   async loginWithPhoneNumber(@Body() body: LoginWithPhoneNumberDto) {
-    const data = this.authService.loginWithPhoneNumber(body.idToken);
+    const data = await this.authService.loginWithPhoneNumber(body.idToken);
     return this.apiUtilsSevice.make_response(data);
   }
 

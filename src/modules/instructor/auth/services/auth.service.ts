@@ -236,6 +236,7 @@ export class AuthService {
           data: {
             name: firebaseUser.displayName ?? 'Unknown User',
             email: firebaseUser.email ?? null,
+            phoneNumber: firebaseUser.phoneNumber,
             role: RoleEnum.instructor,
             firebaseUid: firebaseUser.uid,
             verified: true, // Mark as verified
@@ -258,6 +259,7 @@ export class AuthService {
         userId: user.id,
         name: user.name,
         email: user.email,
+        phoneNumber: firebaseUser.phoneNumber, // Added phone number
         role: RoleEnum.instructor,
         instructorId: instructor?.id,
       };
