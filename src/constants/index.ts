@@ -39,5 +39,6 @@ export const envConstant = {
   ADMIN_EMAIL: process.env.ADMIN_EMAIL || 'admin@example.com',
   ADMIN_PASSWORD: process.env.ADMIN_PASSWORD || 'admin123', // For development fallback if hash is not set
   ADMIN_PASSWORD_HASH: process.env.ADMIN_PASSWORD_HASH || '', // Store pre-hashed password here for production
+  AUTHORIZED_ADMIN_PHONES: process.env.AUTHORIZED_ADMIN_PHONES || '', // Comma-separated list of authorized admin phone numbers
   PUBLIC_BUCKET_NAME: 'pcc-public',
 };

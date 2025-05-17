@@ -1,7 +1,9 @@
-import { Controller, Post, Body,  } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards } from '@nestjs/common';
 import { AdminAuthService } from '../services/auth.service';
 import { AdminLoginDto } from '../dto/login.dto';
-import { ApiUtilsService } from '@utils/utils.service'; // Assuming ApiUtilsService is in a shared utils path
+import { AdminPhoneLoginDto } from '../dto/phone-login.dto';
+import { ApiUtilsService } from '@utils/utils.service';
+import { InstructorApprovalDto } from '../dto/instructor-approval.dto';
 
 @Controller('admin/auth')
 export class AdminAuthController {
@@ -14,5 +16,23 @@ export class AdminAuthController {
   async login(@Body() adminLoginDto: AdminLoginDto) {
     const data = await this.adminAuthService.login(adminLoginDto);
     return this.apiUtilsService.make_response(data, 'Admin login successful');
+  }
+
+  @Post('login/phone')
+  async loginWithPhone(@Body() phoneLoginDto: AdminPhoneLoginDto) {
+    const data = await this.adminAuthService.loginWithPhoneNumber(phoneLoginDto);
+    return this.apiUtilsService.make_response(data, 'Admin phone login successful');
+  }
+
+  @Post('instructor/approve&decline')
+  async approveInstructor(@Body() approvalDto: InstructorApprovalDto) {
+    const data = await this.adminAuthService.approveInstructor(
+      approvalDto.instructorId,
+      approvalDto.approvalStatus,
+    );
+    return this.apiUtilsService.make_response(
+      data,
+      `Instructor ${approvalDto.approvalStatus} successfully`,
+    );
   }
 }
