@@ -6,6 +6,7 @@ import { RouterModule } from '@nestjs/core';
 import { CourseModule } from './course/course.module';
 import { LiveClassModule } from './liveclass/liveclass.module';
 import { UserModule } from './user/user.module';
+import { MediasoupModule } from './mediasoup/mediasoup.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { UserModule } from './user/user.module';
     CourseModule,
     LiveClassModule,
     UserModule,
+    MediasoupModule,
     RouterModule.register([
       {
         path: 'instructor',
