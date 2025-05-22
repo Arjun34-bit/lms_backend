@@ -1,7 +1,14 @@
-import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
+import { Injectable, UnauthorizedException, Logger, BadRequestException, NotFoundException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { AdminLoginDto } from '../dto/login.dto';
+import { AdminPhoneLoginDto } from '../dto/phone-login.dto';
 import { envConstant } from '@constants/index';
+import { firebaseAuth } from 'src/config/firebase.config';
+import { PrismaService } from 'src/prisma/prisma.service';
+import { AdminApprovalEnum } from '@prisma/client';
+
+// List of authorized admin phone numbers
+const AUTHORIZED_ADMIN_PHONES = envConstant.AUTHORIZED_ADMIN_PHONES?.split(',') || [];
 
 // In a real application, these would be stored securely, e.g., in environment variables or a config service
 const ADMIN_EMAIL = envConstant.ADMIN_EMAIL || 'admin@example.com';
@@ -9,7 +16,43 @@ const ADMIN_PASSWORD = envConstant.ADMIN_PASSWORD || "admin123"; // Store hashed
 
 @Injectable()
 export class AdminAuthService {
-  constructor(private readonly jwtService: JwtService) {}
+  constructor(
+    private readonly jwtService: JwtService,
+    private readonly prisma: PrismaService,
+  ) {}
+
+  async loginWithPhoneNumber(phoneLoginDto: AdminPhoneLoginDto): Promise<{ access_token: string; user: any }> {
+    try {
+      const decodedToken = await firebaseAuth.verifyIdToken(phoneLoginDto.idToken);
+      const firebaseUser = await firebaseAuth.getUser(decodedToken.uid);
+
+      if (!firebaseUser.phoneNumber) {
+        throw new BadRequestException('No phone number associated with this account');
+      }
+
+      // Check if the phone number is in the authorized list
+      if (!AUTHORIZED_ADMIN_PHONES.includes(firebaseUser.phoneNumber)) {
+        throw new UnauthorizedException('This phone number is not authorized for admin access');
+      }
+
+      const payload = {
+        username: firebaseUser.phoneNumber,
+        sub: firebaseUser.uid,
+        role: 'admin',
+      };
+
+      return {
+        access_token: this.jwtService.sign(payload),
+        user: {
+          phoneNumber: firebaseUser.phoneNumber,
+          role: 'admin',
+        },
+      };
+    } catch (error) {
+      Logger.error(`Admin phone login error: ${error.message}`);
+      throw error;
+    }
+  }
 
   async login(adminLoginDto: AdminLoginDto): Promise<{ access_token: string; user: any }> {
     const { email, password } = adminLoginDto;
@@ -38,5 +81,29 @@ export class AdminAuthService {
         role: 'admin',
       },
     };
+  }
+
+  async approveInstructor(instructorId: string, approvalStatus: AdminApprovalEnum) {
+    try {
+      const instructor = await this.prisma.instructor.findUnique({
+        where: { id: instructorId },
+        include: { user: true },
+      });
+
+      if (!instructor) {
+        throw new NotFoundException('Instructor not found');
+      }
+
+      const updatedInstructor = await this.prisma.instructor.update({
+        where: { id: instructorId },
+        data: { approvalStatus },
+        include: { user: true },
+      });
+
+      return updatedInstructor;
+    } catch (error) {
+      Logger.error(`Instructor approval error: ${error.message}`);
+      throw error;
+    }
   }
 }
