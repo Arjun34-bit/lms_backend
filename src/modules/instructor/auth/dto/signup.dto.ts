@@ -1,4 +1,4 @@
-import { IsEmail, IsMongoId, IsNotEmpty, IsOptional, IsPhoneNumber, IsString } from 'class-validator';
+import { IsEmail, IsMongoId, IsNotEmpty, IsOptional, IsPhoneNumber, IsString, Matches } from 'class-validator';
 
 export class SignUpDto {
   @IsString()
@@ -9,8 +9,11 @@ export class SignUpDto {
   @IsNotEmpty()
   email: string;
 
-  @IsPhoneNumber()
+  @IsPhoneNumber('IN') // Optional but specific
   @IsNotEmpty()
+  @Matches(/^\+91[6-9]\d{9}$/, {
+    message: 'Phone number must be a valid Indian number starting with +91',
+  })
   phoneNumber: string;
 
   @IsString()

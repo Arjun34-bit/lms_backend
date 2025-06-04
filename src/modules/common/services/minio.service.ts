@@ -85,5 +85,5 @@ export class MinioService {
       Logger.error(error?.stack);
       throw new InternalServerErrorException('Failed to generate file URL: ' + error.message);
     }
-  }
+  } 
 }

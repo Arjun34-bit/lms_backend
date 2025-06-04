@@ -106,4 +106,64 @@ export class AdminAuthService {
       throw error;
     }
   }
+
+  async getPendingInstructors(limit: number, pageNumber: number) {
+    try {
+      const skip = (pageNumber - 1) * limit;
+      
+      const [pendingInstructors, total] = await Promise.all([
+        this.prisma.instructor.findMany({
+          where: { approvalStatus: AdminApprovalEnum.pending },
+          include: { user: true },
+          take: limit,
+          skip: skip
+        }),
+        this.prisma.instructor.count({
+          where: { approvalStatus: AdminApprovalEnum.pending }
+        })
+      ]);
+
+      return {
+        data: pendingInstructors,
+        meta: {
+          total,
+          pageNumber,
+          limit,
+          totalPages: Math.ceil(total / limit)
+        }
+      };
+    } catch (error) {
+      Logger.error(`Get pending instructors error: ${error.message}`);
+      throw error;
+    }
+  }
+  async getApprovedInstructors(limit: number, pageNumber: number) {
+    const skip = (pageNumber - 1) * limit;
+  
+    const [approvedInstructors, total] = await Promise.all([
+      this.prisma.instructor.findMany({
+        where: { approvalStatus: AdminApprovalEnum.approved },
+        include: { user: true },
+        take: limit,
+        skip: skip,
+      }),
+      this.prisma.instructor.count({
+        where: { approvalStatus: AdminApprovalEnum.approved },
+      }),
+    ]);
+  
+    return {
+      data: approvedInstructors,
+      meta: {
+        total,
+        pageNumber,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+  
+  
 }
+
+

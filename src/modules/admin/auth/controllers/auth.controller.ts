@@ -1,9 +1,10 @@
-import { Controller, Post, Body, UseGuards } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards, Get, Query } from '@nestjs/common';
 import { AdminAuthService } from '../services/auth.service';
 import { AdminLoginDto } from '../dto/login.dto';
 import { AdminPhoneLoginDto } from '../dto/phone-login.dto';
 import { ApiUtilsService } from '@utils/utils.service';
 import { InstructorApprovalDto } from '../dto/instructor-approval.dto';
+import { JwtAdminAuthGuard } from '../guards/jwt-admin.guard';
 
 @Controller('admin/auth')
 export class AdminAuthController {
@@ -24,6 +25,8 @@ export class AdminAuthController {
     return this.apiUtilsService.make_response(data, 'Admin phone login successful');
   }
 
+
+  @UseGuards(JwtAdminAuthGuard)
   @Post('instructor/approve&decline')
   async approveInstructor(@Body() approvalDto: InstructorApprovalDto) {
     const data = await this.adminAuthService.approveInstructor(
@@ -35,4 +38,18 @@ export class AdminAuthController {
       `Instructor ${approvalDto.approvalStatus} successfully`,
     );
   }
+  @UseGuards(JwtAdminAuthGuard)
+  @Get('instructors/pending')
+  async getPendingInstructors(@Query('limit') limit = 10, @Query('pageNumber') pageNumber = 1) {
+    const data = await this.adminAuthService.getPendingInstructors(+limit, +pageNumber);
+    return this.apiUtilsService.make_response(data, 'Pending instructors retrieved successfully');
+  }
+
+  @UseGuards(JwtAdminAuthGuard)
+  @Get('instructors/approved')
+async getApprovedInstructors(@Query('limit') limit = 10, @Query('pageNumber') pageNumber = 1) {
+  const data = await this.adminAuthService.getApprovedInstructors(+limit, +pageNumber);
+  return this.apiUtilsService.make_response(data, 'Approved instructors retrieved successfully');
+}
+
 }

@@ -3,9 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { ParentSignupDto, ParentSigninDto, ConnectChildrenDto, DisconnectChildrenDto } from '../dto/auth.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
-
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import e from 'express';
 import { RoleEnum } from '@prisma/client';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
@@ -45,7 +43,7 @@ export class ParentAuthService {
             password: hashedPassword,
             name: dto.name,
             role: RoleEnum.parent,
-            verified: false
+            verified: false,
           }
         },
         address: dto.address,
@@ -122,10 +120,14 @@ export class ParentAuthService {
             role: RoleEnum.parent,
             firebaseUid: firebaseUser.uid,
             verified: true, // Phone-based login is automatically verified
+            phoneNumber: firebaseUser.phoneNumber,
             parent: {
               create: {},
             },
           },
+          include: {
+            parent: true
+          }
         });
       }
       const parent = await this.prisma.parent.findUnique({

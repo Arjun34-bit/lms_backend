@@ -20,10 +20,19 @@ export class CourseService {
     user: InstructorJwtDto,
     file: Multer.File,
   ) {
-    try {
+     try {
       if (!file) {
         throw new BadRequestException('Please upload thumbnail');
       }
+      const uploadedFile = await this.minioService.uploadFile(
+        envConstant.PUBLIC_BUCKET_NAME,
+        file.buffer,
+        `course_thumbnails/${Date.now()}-${file.originalname}`,
+      );
+      if (!uploadedFile || !uploadedFile.fileData) {
+        throw new BadRequestException('Failed to upload thumbnail');
+      }
+      const thumbnailId = uploadedFile.fileData.id;
       const checkCategory = await this.prisma.category.count({
         where: {
           id: createCourseDto.categoryId,
@@ -52,19 +61,11 @@ export class CourseService {
         throw new BadRequestException('Invalid language');
       }
 
-      const uploadedFile = await this.minioService.uploadFile(
-        envConstant.PUBLIC_BUCKET_NAME,
-        file?.buffer,
-        `course_thumbnails/${Date.now()}-${file.originalname}`,
-      );
-if (!uploadedFile) {
-        throw new BadRequestException('Failed to upload thumbnail');
-      }
       const course = await this.prisma.course.create({
         data: {
           ...createCourseDto,
           addedById: user.userId,
-          thumbnailId: uploadedFile.fileData.id,
+          thumbnailId,
           InstructorAssignedToCourse: {
             create: {
               instructorId: user.instructorId,
@@ -163,6 +164,9 @@ if (!uploadedFile) {
         skip: Number(queryDto.limit) * (Number(queryDto.pageNumber) - 1),
         take: Number(queryDto.limit),
       });
+      // const coursesWithThumbnailUrls = await Promise.all(
+        
+      // )
 
       const totalCount = await this.prisma.course.count({
         where: {
