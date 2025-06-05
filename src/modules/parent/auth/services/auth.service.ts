@@ -256,6 +256,7 @@ export class ParentAuthService {
       studentId: student.id,      // Student record's ID
       userId: student.user?.id,   // Student's User ID
       name: student.user?.name,
+      address: student?.user?.address   // Student's name
     }));
 
     return {
