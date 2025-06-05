@@ -91,7 +91,7 @@ export class CourseService {
       if (!queryDto.pageNumber) {
         queryDto.pageNumber = 1;
       }
-
+  
       const courses = await this.prisma.course.findMany({
         where: {
           InstructorAssignedToCourse: {
@@ -164,10 +164,32 @@ export class CourseService {
         skip: Number(queryDto.limit) * (Number(queryDto.pageNumber) - 1),
         take: Number(queryDto.limit),
       });
-      // const coursesWithThumbnailUrls = await Promise.all(
-        
-      // )
-
+  
+      const enrichedCourses = await Promise.all(
+        courses.map(async ({ thumbnail, ...rest }) => {
+          let thumbnailUrl = null;
+  
+          if (thumbnail?.id) {
+            const fileRecord = await this.prisma.files.findUnique({
+              where: { id: thumbnail.id },
+              select: { objectKey: true },
+            });
+  
+            if (fileRecord?.objectKey) {
+              thumbnailUrl = await this.minioService.getFileUrl(
+                envConstant.PUBLIC_BUCKET_NAME,
+                fileRecord.objectKey,
+              );
+            }
+          }
+  
+          return {
+            ...rest,
+            thumbnailUrl,
+          };
+        }),
+      );
+  
       const totalCount = await this.prisma.course.count({
         where: {
           InstructorAssignedToCourse: {
@@ -194,9 +216,9 @@ export class CourseService {
           ],
         },
       });
-
+  
       return {
-        courses,
+        courses: enrichedCourses,
         totalCount,
         limit: queryDto.limit,
       };
@@ -207,6 +229,7 @@ export class CourseService {
       throw error;
     }
   }
+  
 
   async assignedCoursesStats(user: InstructorJwtDto) {
     try {

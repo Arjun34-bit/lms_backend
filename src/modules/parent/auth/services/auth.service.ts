@@ -71,7 +71,8 @@ export class ParentAuthService {
 
     return {
       token: this.generateToken(parent),
-      parent: this.sanitizeParent(parent)
+      parent: this.sanitizeParent(parent),
+      message: 'Signup successful. Please verify your email to continue.',
     };
   }
   async verifyEmail(verificationToken: string) {
@@ -196,7 +197,6 @@ export class ParentAuthService {
       throw new BadRequestException('Parent not found');
     }
 
-    // Connect multiple children to the parent
     await this.prisma.parent.update({
       where: { id: parentId },
       data: {
@@ -256,7 +256,6 @@ export class ParentAuthService {
       studentId: student.id,      // Student record's ID
       userId: student.user?.id,   // Student's User ID
       name: student.user?.name,
-      address: student?.user?.address   // Student's name
     }));
 
     return {
