@@ -5,6 +5,7 @@ import { AdminAuthModule } from './auth/auth.module';
 import { CategoryModule } from './category/category.module'; // Added import
 import { TestModule } from './test/test.module';
 import { AssignmentModule } from './assignment/assignment.module';
+import { MeetingModule } from './meeting/meeting.module';
 
 
 @Module({
@@ -14,6 +15,7 @@ import { AssignmentModule } from './assignment/assignment.module';
         CategoryModule ,// Added CategoryModule to imports
         TestModule,
      AssignmentModule,     
+     MeetingModule
     ],
 })
 export class AdminModule { }

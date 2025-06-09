@@ -11,7 +11,6 @@ import { JwtService } from '@nestjs/jwt';
 import { LoginDto } from '../dto/login.dto';
 import { RoleEnum } from '@prisma/client';
 import { firebaseAuth } from 'src/config/firebase.config';
-import { envConstant } from '@constants/index';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
@@ -27,92 +26,65 @@ export class AuthService {
 
   async signupWithEmail(data: SignUpDto) {
     try {
-      const existingUser = await this.prisma.user.count({
+      const existingUser = await this.prisma.user.findUnique({
         where: {
-          OR: [
-            {
-              email: data.email?.toLowerCase(),
-            },
-            {
-              phoneNumber: data?.phoneNumber,
-            },
-          ],
+          email: data.email?.toLowerCase(),
         },
       });
-      const existingUserInFirebase = await firebaseAuth
-        .getUserByEmail(data.email.toLowerCase())
-        .then((user) => user)
-        .catch((error) =>
-          error.code === 'auth/user-not-found'
-            ? null
-            : Promise.reject(
-                new BadRequestException('Firebase error: ' + error.message),
-              ),
-        );
 
-      if (existingUser && existingUserInFirebase) {
+      if (existingUser) {
         throw new BadRequestException('Email already exists');
       }
 
-      let userInFirebase: any;
-      if (existingUserInFirebase) {
-        // Update existing user
-        userInFirebase = await firebaseAuth.updateUser(
-          existingUserInFirebase.uid,
-          {
-            displayName: data.name,
-            phoneNumber: data.phoneNumber,
-            password: data.password,
-          },
-        );
-      } else {
-        // Create new user
-        userInFirebase = await firebaseAuth.createUser({
-          displayName: data.name,
-          email: data.email.toLowerCase(),
-          emailVerified: false,
-          disabled: false,
-          phoneNumber: data.phoneNumber,
-          password: data.password,
-        });
-      }
-
       const hashedPassword = await bcrypt.hash(data.password, 10);
+      const verificationToken = this.jwtService.sign(
+        { email: data.email, role: RoleEnum.student },
+        { expiresIn: '1h' }
+      );
 
-      const createdUser = await this.prisma.user.upsert({
-        where: {
-          email: data?.email?.toLowerCase(),
+      const createdUser = await this.prisma.student.create({
+
+        data: {
+
+          user: {
+
+            create: {
+              email: data.email?.toLowerCase(),
+              password: hashedPassword,
+              name: data.name,
+              role: RoleEnum.student,
+              verified: false,
+            },
+          },
+          
         },
-        create: {
-          name: data.name,
-          email: data.email?.toLowerCase(),
-          password: hashedPassword,
-          role: RoleEnum.student,
-          verified: userInFirebase.emailVerified,
-          firebaseUid: userInFirebase.uid,
-          student: {},
-        },
-        update: {
-          name: data.name,
-          email: data.email?.toLowerCase(),
-          password: hashedPassword,
-          role: RoleEnum.student,
-          verified: userInFirebase.emailVerified,
-          firebaseUid: userInFirebase.uid,
-          student: {},
+        include: {
+          user: true,
         },
       });
+
+      // Store verification token in cache
+      await this.cacheManager.set(
+        `user-verification:${verificationToken}`,
+        JSON.stringify({
+          email: data.email,
+          role: RoleEnum.student,
+        }),
+        60 * 60 * 1000 // 1 hour expiry
+      );
 
       const payload = {
         userId: createdUser.id,
-        name: createdUser.name,
-        email: createdUser.email,
+        name: createdUser.user.name,
+        email: createdUser.user.email,
         role: RoleEnum.student,
       };
+
       this.eventEmitter.emit('user.sendVerificationLink', {
-        email: createdUser.email,
-        role: createdUser.role,
+        email: createdUser.user.email,
+        role: createdUser.user.role,
       });
+
       return payload;
     } catch (error) {
       if (error.statusCode === 500) {
@@ -131,17 +103,6 @@ export class AuthService {
       }
       const user = JSON.parse(userData);
 
-      const existingUserInFirebase = await firebaseAuth
-        .getUserByEmail(user?.email?.toLowerCase())
-        .then((user) => user)
-        .catch((error) =>
-          error.code === 'auth/user-not-found'
-            ? null
-            : Promise.reject(
-                new BadRequestException('Firebase error: ' + error.message),
-              ),
-        );
-
       const userUpdated = await this.prisma.user.update({
         where: {
           email: user?.email,
@@ -149,15 +110,13 @@ export class AuthService {
         },
         data: {
           verified: true,
-          firebaseUid: existingUserInFirebase.uid,
         },
       });
 
-      await firebaseAuth.updateUser(userUpdated.firebaseUid, {
-        emailVerified: true,
-      });
+      // Remove the verification token from cache after successful verification
+      await this.cacheManager.del(cacheKey);
 
-      return { message: 'Instructor account has been verified successfully' };
+      return { message: 'Student account has been verified successfully' };
     } catch (error) {
       if (error.statusCode === 500) {
         Logger.error(error?.stack);
@@ -183,7 +142,7 @@ export class AuthService {
             role: RoleEnum.student,
             firebaseUid: firebaseUser.uid,
             verified: true, // Mark as verified
-            student: {},
+            student: {}
           },
         });
       }
@@ -229,26 +188,15 @@ export class AuthService {
         },
       });
 
-      const fireAuthUser = await firebaseAuth
-        .getUserByEmail(email?.toLowerCase())
-        .then((user) => user)
-        .catch((error) =>
-          error.code === 'auth/user-not-found'
-            ? null
-            : Promise.reject(
-                new BadRequestException('Firebase error: ' + error.message),
-              ),
-        );
-
-      if (!user || !fireAuthUser) {
-        throw new BadRequestException("User doesn't exists. Please signup.");
+      if (!user) {
+        throw new BadRequestException("User doesn't exist. Please signup.");
       }
 
       if (!(await bcrypt.compare(password, user.password))) {
         throw new BadRequestException('Invalid email or password');
       }
 
-      if (!fireAuthUser.emailVerified || !user.verified) {
+      if (!user.verified) {
         throw new BadRequestException(
           'Email not verified. Please verify before logging in.',
         );
@@ -274,60 +222,5 @@ export class AuthService {
     }
   }
 
-  async googleLogin(idToken: string) {
-    try {
-      // Verify the ID token with Firebase Admin SDK
-      const decodedToken = await firebaseAuth.verifyIdToken(idToken);
-      const { email, name, uid } = decodedToken;
 
-      if (!email) {
-        throw new BadRequestException('Invalid Google account');
-      }
-
-      // Check if the user already exists
-      let user: any = await this.prisma.user.findUnique({
-        where: { email },
-        include: {
-          student: {
-            select: {
-              id: true,
-            },
-          },
-        },
-      });
-
-      if (!user) {
-        // If user doesn't exist, create a new user
-        user = await this.prisma.user.create({
-          data: {
-            name: name || 'Google User',
-            email: email.toLowerCase(),
-            firebaseUid: uid,
-            password: null,
-            verified: true,
-            role: RoleEnum.student,
-            student: {},
-            // googleId: uid, // Save Firebase UID for reference
-          },
-        });
-      }
-
-      // Generate JWT payload
-      const payload = {
-        userId: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        studentId: user?.student?.id,
-      };
-
-      return {
-        access_token: this.jwtService.sign(payload),
-        user: payload,
-      };
-    } catch (error) {
-      Logger.error('Error during Google login: ', error?.stack);
-      throw new BadRequestException('Invalid Google token');
-    }
-  }
 }

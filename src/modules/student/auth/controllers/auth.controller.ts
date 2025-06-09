@@ -42,8 +42,5 @@ export class StudentAuthController {
     return res.redirect(`${envConstant.CLIENT_BASE_URL}/student/verified?message=${data.message}`)
   }
 
-  @Post('google-login')
-  async googleLogin(@Body('idToken') idToken: string) {
-    return this.authService.googleLogin(idToken);
-  }
+
 }

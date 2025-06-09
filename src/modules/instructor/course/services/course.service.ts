@@ -20,10 +20,19 @@ export class CourseService {
     user: InstructorJwtDto,
     file: Multer.File,
   ) {
-    try {
+     try {
       if (!file) {
         throw new BadRequestException('Please upload thumbnail');
       }
+      const uploadedFile = await this.minioService.uploadFile(
+        envConstant.PUBLIC_BUCKET_NAME,
+        file.buffer,
+        `course_thumbnails/${Date.now()}-${file.originalname}`,
+      );
+      if (!uploadedFile || !uploadedFile.fileData) {
+        throw new BadRequestException('Failed to upload thumbnail');
+      }
+      const thumbnailId = uploadedFile.fileData.id;
       const checkCategory = await this.prisma.category.count({
         where: {
           id: createCourseDto.categoryId,
@@ -52,19 +61,11 @@ export class CourseService {
         throw new BadRequestException('Invalid language');
       }
 
-      const uploadedFile = await this.minioService.uploadFile(
-        envConstant.PUBLIC_BUCKET_NAME,
-        file?.buffer,
-        `course_thumbnails/${Date.now()}-${file.originalname}`,
-      );
-if (!uploadedFile) {
-        throw new BadRequestException('Failed to upload thumbnail');
-      }
       const course = await this.prisma.course.create({
         data: {
           ...createCourseDto,
           addedById: user.userId,
-          thumbnailId: uploadedFile.fileData.id,
+          thumbnailId,
           InstructorAssignedToCourse: {
             create: {
               instructorId: user.instructorId,
@@ -90,7 +91,7 @@ if (!uploadedFile) {
       if (!queryDto.pageNumber) {
         queryDto.pageNumber = 1;
       }
-
+  
       const courses = await this.prisma.course.findMany({
         where: {
           InstructorAssignedToCourse: {
@@ -163,7 +164,32 @@ if (!uploadedFile) {
         skip: Number(queryDto.limit) * (Number(queryDto.pageNumber) - 1),
         take: Number(queryDto.limit),
       });
-
+  
+      const enrichedCourses = await Promise.all(
+        courses.map(async ({ thumbnail, ...rest }) => {
+          let thumbnailUrl = null;
+  
+          if (thumbnail?.id) {
+            const fileRecord = await this.prisma.files.findUnique({
+              where: { id: thumbnail.id },
+              select: { objectKey: true },
+            });
+  
+            if (fileRecord?.objectKey) {
+              thumbnailUrl = await this.minioService.getFileUrl(
+                envConstant.PUBLIC_BUCKET_NAME,
+                fileRecord.objectKey,
+              );
+            }
+          }
+  
+          return {
+            ...rest,
+            thumbnailUrl,
+          };
+        }),
+      );
+  
       const totalCount = await this.prisma.course.count({
         where: {
           InstructorAssignedToCourse: {
@@ -190,9 +216,9 @@ if (!uploadedFile) {
           ],
         },
       });
-
+  
       return {
-        courses,
+        courses: enrichedCourses,
         totalCount,
         limit: queryDto.limit,
       };
@@ -203,6 +229,7 @@ if (!uploadedFile) {
       throw error;
     }
   }
+  
 
   async assignedCoursesStats(user: InstructorJwtDto) {
     try {

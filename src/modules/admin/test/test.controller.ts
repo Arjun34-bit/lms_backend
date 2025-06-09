@@ -1,9 +1,11 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
 import { TestService } from './test.service';
 import { CreateTestDto } from './dto/create-test.dto';
 import { UpdateTestDto } from './dto/update-test.dto';
 import { ApiUtilsService } from '@utils/utils.service';
+import { JwtAdminAuthGuard } from '../auth/guards/jwt-admin.guard';
 
+@UseGuards(JwtAdminAuthGuard)
 @Controller('admin/tests')
 export class TestController {
   constructor(

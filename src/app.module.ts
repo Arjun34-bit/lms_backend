@@ -20,6 +20,7 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
 import { WebSocketModule } from './web-socket/websocket.module';
 import { ParentModule } from '@modules/parent/parent.module';
 import { AdminModule } from '@modules/admin/admin.module';
+import { PaymentService } from './payment/payment.service';
 
 @Module({
   imports: [
@@ -50,6 +51,7 @@ import { AdminModule } from '@modules/admin/admin.module';
     SubjectSeederService,
     CategorySeederService,
     LanguageSeederService,
+    PaymentService,
   ],
   exports: [PrismaService],
 })
