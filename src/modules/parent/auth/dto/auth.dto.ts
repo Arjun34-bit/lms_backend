@@ -39,3 +39,9 @@ export class LoginWithPhoneNumberDto {
     @IsNotEmpty()
     idToken: string;
   }
+  export class LoginWithGoogleDto {
+  idToken: string;
+}
+
+
+
