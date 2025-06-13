@@ -29,7 +29,8 @@ export class ParentAuthService {
 
     if (existingParent) {
       throw new BadRequestException('Email already exists');
-    }    const hashedPassword = await bcrypt.hash(dto.password, 10);
+    }    
+    const hashedPassword = await bcrypt.hash(dto.password, 10);
     const verificationToken = this.jwtService.sign(
       { email: dto.email, role: RoleEnum.parent },
       { expiresIn: '1h' }

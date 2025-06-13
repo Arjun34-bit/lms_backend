@@ -9,8 +9,13 @@ export class MeetingService {
   async create(createMeetingDto: CreateMeetingDto) {
     return this.prisma.meeting.create({
       data: createMeetingDto,
-       
-      
+    });
+  }
+async findOne(id: string) {
+    return this.prisma.meeting.findUnique({
+      where: {
+        id,
+      },
     });
   }
 }

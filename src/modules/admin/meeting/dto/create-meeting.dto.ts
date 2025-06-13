@@ -8,4 +8,6 @@ export class CreateMeetingDto {
   @IsNotEmpty()
   @IsString()
   meetingUrl: string;
+
+  
 }
