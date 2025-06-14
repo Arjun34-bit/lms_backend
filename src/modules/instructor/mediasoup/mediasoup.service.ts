@@ -5,11 +5,20 @@ import * as mediasoup from 'mediasoup';
 export class MediasoupService {
   private worker: mediasoup.types.Worker;
   private router: mediasoup.types.Router;
-  private peerTransports: Map<string, { producerTransport?: mediasoup.types.WebRtcTransport; consumerTransport?: mediasoup.types.WebRtcTransport }> = new Map();
+  private peerTransports: Map<
+    string,
+    {
+      producerTransport?: mediasoup.types.WebRtcTransport;
+      consumerTransport?: mediasoup.types.WebRtcTransport;
+    }
+  > = new Map();
   private peerProducers: Map<string, mediasoup.types.Producer> = new Map();
   private peerConsumers: Map<string, mediasoup.types.Consumer> = new Map();
   private broadcasterSocketId: string | null = null;
-  private broadcasterProducerIds: Map<string, { id: string; kind: string; label: string }> = new Map();
+  private broadcasterProducerIds: Map<
+    string,
+    { id: string; kind: string; label: string }
+  > = new Map();
   private viewerCountCallback: (count: number) => void = () => {};
 
   constructor() {
@@ -51,7 +60,11 @@ export class MediasoupService {
         clockRate: 90000,
         parameters: { 'x-google-start-bitrate': 1000 },
         preferredPayloadType: 97,
-        rtcpFeedback: [{ type: 'nack' }, { type: 'ccm', parameter: 'fir' }, { type: 'goog-remb' }],
+        rtcpFeedback: [
+          { type: 'nack' },
+          { type: 'ccm', parameter: 'fir' },
+          { type: 'goog-remb' },
+        ],
       },
     ];
 
@@ -71,20 +84,28 @@ export class MediasoupService {
   handleDisconnect(socketId: string) {
     this.peerTransports.delete(socketId);
     this.peerProducers.delete(socketId);
-    const consumerKeys = Array.from(this.peerConsumers.keys()).filter(key => key.startsWith(`${socketId}:`));
-    consumerKeys.forEach(key => this.peerConsumers.delete(key));
+    const consumerKeys = Array.from(this.peerConsumers.keys()).filter((key) =>
+      key.startsWith(`${socketId}:`),
+    );
+    consumerKeys.forEach((key) => this.peerConsumers.delete(key));
     if (this.broadcasterSocketId === socketId) {
       this.broadcasterSocketId = null;
       this.broadcasterProducerIds.clear();
-      console.log(`Broadcaster ${socketId} disconnected, cleared broadcaster data`);
+      console.log(
+        `Broadcaster ${socketId} disconnected, cleared broadcaster data`,
+      );
     }
     this.notifyViewerCount();
   }
 
   private notifyViewerCount() {
-    const viewerIds = new Set(Array.from(this.peerConsumers.keys()).map(key => key.split(':')[0]));
+    const viewerIds = new Set(
+      Array.from(this.peerConsumers.keys()).map((key) => key.split(':')[0]),
+    );
     const count = viewerIds.size;
-    console.log(`Notifying viewer count: ${count} (viewer IDs: ${Array.from(viewerIds)})`);
+    console.log(
+      `Notifying viewer count: ${count} (viewer IDs: ${Array.from(viewerIds)})`,
+    );
     this.viewerCountCallback(count);
   }
 
@@ -100,7 +121,9 @@ export class MediasoupService {
       preferUdp: true,
     };
 
-    const transport = await this.router.createWebRtcTransport(webRtcTransportOptions);
+    const transport = await this.router.createWebRtcTransport(
+      webRtcTransportOptions,
+    );
     console.log(`Transport created for peer ${peerId}: ${transport.id}`);
 
     transport.on('dtlsstatechange', (dtlsState) => {
@@ -126,7 +149,10 @@ export class MediasoupService {
     return transport;
   }
 
-  async connectProducerTransport(peerId: string, dtlsParameters: mediasoup.types.DtlsParameters) {
+  async connectProducerTransport(
+    peerId: string,
+    dtlsParameters: mediasoup.types.DtlsParameters,
+  ) {
     const transport = this.peerTransports.get(peerId)?.producerTransport;
     if (transport) {
       await transport.connect({ dtlsParameters });
@@ -134,7 +160,12 @@ export class MediasoupService {
     }
   }
 
-  async produce(peerId: string, kind: mediasoup.types.MediaKind, rtpParameters: mediasoup.types.RtpParameters, label: string = '') {
+  async produce(
+    peerId: string,
+    kind: mediasoup.types.MediaKind,
+    rtpParameters: mediasoup.types.RtpParameters,
+    label: string = '',
+  ) {
     const transport = this.peerTransports.get(peerId)?.producerTransport;
     if (!transport) {
       throw new Error('Producer transport not found');
@@ -144,9 +175,18 @@ export class MediasoupService {
     const producerKey = `${peerId}:${kind}:${label}`;
     this.peerProducers.set(producerKey, producer);
     if (this.broadcasterSocketId === peerId) {
-      this.broadcasterProducerIds.set(`${kind}:${label}`, { id: producer.id, kind, label });
-      console.log(`Broadcaster producer ID set: ${producer.id} for ${kind} (${label})`);
-      console.log(`Current broadcasterProducerIds:`, Array.from(this.broadcasterProducerIds.entries()));
+      this.broadcasterProducerIds.set(`${kind}:${label}`, {
+        id: producer.id,
+        kind,
+        label,
+      });
+      console.log(
+        `Broadcaster producer ID set: ${producer.id} for ${kind} (${label})`,
+      );
+      console.log(
+        `Current broadcasterProducerIds:`,
+        Array.from(this.broadcasterProducerIds.entries()),
+      );
     }
 
     producer.on('transportclose', () => {
@@ -162,7 +202,10 @@ export class MediasoupService {
     return producer.id;
   }
 
-  async connectConsumerTransport(peerId: string, dtlsParameters: mediasoup.types.DtlsParameters) {
+  async connectConsumerTransport(
+    peerId: string,
+    dtlsParameters: mediasoup.types.DtlsParameters,
+  ) {
     const transport = this.peerTransports.get(peerId)?.consumerTransport;
     if (transport) {
       await transport.connect({ dtlsParameters });
@@ -170,30 +213,57 @@ export class MediasoupService {
     }
   }
 
-  async consume(peerId: string, rtpCapabilities: mediasoup.types.RtpCapabilities) {
+  async consume(
+    peerId: string,
+    rtpCapabilities: mediasoup.types.RtpCapabilities,
+  ) {
     if (!this.broadcasterSocketId || this.broadcasterProducerIds.size === 0) {
       throw new Error('No broadcaster available');
     }
 
-    console.log(`Consumer RTP capabilities for peer ${peerId}:`, rtpCapabilities);
-    console.log(`Broadcaster producers available:`, Array.from(this.broadcasterProducerIds.entries()));
+    console.log(
+      `Consumer RTP capabilities for peer ${peerId}:`,
+      rtpCapabilities,
+    );
+    console.log(
+      `Broadcaster producers available:`,
+      Array.from(this.broadcasterProducerIds.entries()),
+    );
 
     const transport = this.peerTransports.get(peerId)?.consumerTransport;
     if (!transport) {
       throw new Error('Consumer transport not found');
     }
 
-    const consumerParams: { producerId: string; id: string; kind: string; rtpParameters: mediasoup.types.RtpParameters; label: string }[] = [];
-    for (const [key, { id: producerId, kind, label }] of this.broadcasterProducerIds) {
-      const producer = this.peerProducers.get(`${this.broadcasterSocketId}:${key}`);
+    const consumerParams: {
+      producerId: string;
+      id: string;
+      kind: string;
+      rtpParameters: mediasoup.types.RtpParameters;
+      label: string;
+    }[] = [];
+    for (const [key, { id: producerId, kind, label }] of this
+      .broadcasterProducerIds) {
+      const producer = this.peerProducers.get(
+        `${this.broadcasterSocketId}:${key}`,
+      );
       if (!producer) {
-        console.log(`Producer not found for ${key} (producerId: ${producerId})`);
+        console.log(
+          `Producer not found for ${key} (producerId: ${producerId})`,
+        );
         continue;
       }
-      const canConsume = this.router.canConsume({ producerId, rtpCapabilities });
-      console.log(`Can consume producer ${producerId} for ${key} (kind: ${kind}, label: ${label}): ${canConsume}`);
+      const canConsume = this.router.canConsume({
+        producerId,
+        rtpCapabilities,
+      });
+      console.log(
+        `Can consume producer ${producerId} for ${key} (kind: ${kind}, label: ${label}): ${canConsume}`,
+      );
       if (!canConsume) {
-        console.log(`Skipping producer ${producerId} due to incompatible RTP capabilities`);
+        console.log(
+          `Skipping producer ${producerId} due to incompatible RTP capabilities`,
+        );
         continue;
       }
 
@@ -205,7 +275,9 @@ export class MediasoupService {
         });
 
         this.peerConsumers.set(`${peerId}:${producerId}`, consumer);
-        console.log(`Added consumer for peer ${peerId}, producer ${producerId} (${kind}, ${label})`);
+        console.log(
+          `Added consumer for peer ${peerId}, producer ${producerId} (${kind}, ${label})`,
+        );
 
         consumer.on('transportclose', () => {
           console.log(`Consumer transport closed for ${producerId}`);
@@ -229,7 +301,10 @@ export class MediasoupService {
           label,
         });
       } catch (error) {
-        console.error(`Error creating consumer for producer ${producerId} (${kind}, ${label}):`, error);
+        console.error(
+          `Error creating consumer for producer ${producerId} (${kind}, ${label}):`,
+          error,
+        );
       }
     }
 
@@ -248,7 +323,9 @@ export class MediasoupService {
       const consumer = this.peerConsumers.get(`${peerId}:${producerId}`);
       if (consumer) {
         await consumer.resume();
-        console.log(`Resumed consumer for peer ${peerId}, producer ${producerId}`);
+        console.log(
+          `Resumed consumer for peer ${peerId}, producer ${producerId}`,
+        );
       }
     }
   }
