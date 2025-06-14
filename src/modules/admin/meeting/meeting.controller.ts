@@ -1,4 +1,4 @@
-import { Controller, Post, Body, UseGuards } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards, Get, Param } from '@nestjs/common';
 import { ApiUtilsService } from '@utils/utils.service';
 import { CreateMeetingDto } from './dto/create-meeting.dto';
 import { MeetingService } from './meeting.service';
@@ -16,5 +16,11 @@ export class MeetingController {
   async create(@Body() createMeetingDto: CreateMeetingDto) {
     const data = await this.meetingService.create(createMeetingDto);
     return this.apiUtilsService.make_response(data, 'Meeting created successfully');
+  }
+
+  @Get(':id')
+  async findOne(@Param('id') id: string) {
+    const data = await this.meetingService.findOne(id);
+    return this.apiUtilsService.make_response(data, 'Meeting retrieved successfully');
   }
 }

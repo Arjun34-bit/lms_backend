@@ -29,7 +29,7 @@ export class AuthService {
       const existingUser = await this.prisma.user.findUnique({
         where: {
           email: data.email?.toLowerCase(),
-        },
+        }, 
       });
 
       if (existingUser) {
@@ -151,7 +151,7 @@ export class AuthService {
           userId: user.id,
         },
         select: {
-          id: true,
+          id: true, 
         },
       });
       // Payload to return after verification/login/signup
