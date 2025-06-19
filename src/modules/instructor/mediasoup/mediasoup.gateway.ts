@@ -1,58 +1,73 @@
-import { SubscribeMessage, WebSocketGateway, WebSocketServer } from '@nestjs/websockets';
+import {
+  SubscribeMessage,
+  WebSocketGateway,
+  WebSocketServer,
+} from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import * as mediasoup from 'mediasoup';
 import { MediasoupService } from './mediasoup.service';
 
-@WebSocketGateway({ namespace: '/mediasoup', cors: { origin: 'http://localhost:3000', credentials: true } })
+@WebSocketGateway({
+  namespace: '/mediasoup',
+  cors: { origin: 'http://localhost:3000', credentials: true },
+})
 export class MediasoupGateway {
   @WebSocketServer() server: Server;
 
-  constructor(private readonly mediasoupService: MediasoupService) {
-    this.mediasoupService.setViewerCountCallback((count: number) => {
-      const broadcasterSocketId = this.mediasoupService.getBroadcasterSocketId();
-      if (broadcasterSocketId) {
-        console.log(`Emitting viewerCount ${count} to broadcaster ${broadcasterSocketId}`);
-        this.server.to(broadcasterSocketId).emit('viewerCount', { count });
-        console.log(`Sent viewer count ${count} to broadcaster ${broadcasterSocketId}`);
-      } else {
-        console.log('No broadcaster socket ID available for viewerCount emission');
-      }
-    });
-  }
+  constructor(private readonly mediasoupService: MediasoupService) {}
 
   handleConnection(socket: Socket) {
-    console.log(`Peer connected: ${socket.id}`);
     socket.emit('connection-success', { socketId: socket.id });
+    console.log(`Client connected: ${socket.id}`);
   }
 
   handleDisconnect(socket: Socket) {
-    console.log(`Peer disconnected: ${socket.id}`);
+    console.log(`Client disconnected: ${socket.id}`);
+    // Cleanup in all rooms
     this.mediasoupService.handleDisconnect(socket.id);
-    if (this.mediasoupService.isBroadcaster(socket.id)) {
-      this.server.emit('broadcasterDisconnected');
-      console.log(`Notified all clients of broadcaster disconnection`);
+  }
+
+  @SubscribeMessage('join-room')
+  async handleJoinRoom(socket: Socket, { roomId }: { roomId: string }) {
+    try {
+      console.log(`Socket ${socket.id} joining room: ${roomId}`);
+      const room = await this.mediasoupService.createRoom(roomId);
+      this.mediasoupService.addPeer(roomId, socket.id, socket);
+      socket.join(roomId);
+      return { joined: true, rtpCapabilities: room.router.rtpCapabilities };
+    } catch (error) {
+      console.log(error);
+      throw new Error('Failed to Join Room or Create Room', error);
     }
   }
 
-  @SubscribeMessage('setBroadcaster')
-  handleSetBroadcaster(socket: Socket) {
-    console.log(`Socket ${socket.id} set as broadcaster`);
-    this.mediasoupService.setBroadcaster(socket.id);
-    return { success: true };
-  }
-
   @SubscribeMessage('getRouterRtpCapabilities')
-  handleGetRouterRtpCapabilities(socket: Socket) {
-    const routerRtpCapabilities = this.mediasoupService.getRouterRtpCapabilities();
-    console.log(`Sending routerRtpCapabilities for socket ${socket.id}:`, routerRtpCapabilities);
+  handleGetRtpCapabilities(socket: Socket, { roomId }: { roomId: string }) {
+    const routerRtpCapabilities =
+      this.mediasoupService.getRouterRtpCapabilities(roomId);
+    console.log(
+      `Sending routerRtpCapabilities for socket ${socket.id}:`,
+      routerRtpCapabilities,
+    );
+
     return { routerRtpCapabilities };
   }
 
   @SubscribeMessage('createTransport')
-  async handleCreateTransport(socket: Socket, { sender }: { sender: boolean }) {
+  async handleCreateTransport(
+    socket: Socket,
+    { roomId, sender }: { roomId: string; sender: boolean },
+  ) {
     try {
-      const transport = await this.mediasoupService.createWebRtcTransport(socket.id, sender);
-      console.log(`Created transport for socket ${socket.id}, sender: ${sender}`, transport.id);
+      const transport = await this.mediasoupService.createWebRtcTransport(
+        roomId,
+        socket.id,
+        sender,
+      );
+      console.log(
+        `Created transport for socket ${socket.id}, sender: ${sender}, room : ${roomId}`,
+        transport.id,
+      );
       return {
         params: {
           id: transport.id,
@@ -61,54 +76,126 @@ export class MediasoupGateway {
           dtlsParameters: transport.dtlsParameters,
         },
       };
-    } catch (error) {
-      console.error(`Error creating transport for socket ${socket.id}:`, error);
+    } catch (error: any) {
+      console.error(`Error creating transport for ${socket.id}`, error);
       return { params: { error: error.message } };
     }
   }
 
   @SubscribeMessage('connectProducerTransport')
-  async handleConnectProducerTransport(socket: Socket, { dtlsParameters }: { dtlsParameters: mediasoup.types.DtlsParameters }) {
-    console.log(`Connecting producer transport for socket ${socket.id}`);
-    await this.mediasoupService.connectProducerTransport(socket.id, dtlsParameters);
+  async handleConnectProducerTransport(
+    socket: Socket,
+    {
+      roomId,
+      dtlsParameters,
+    }: { roomId: string; dtlsParameters: mediasoup.types.DtlsParameters },
+  ) {
+    console.log(
+      `Connecting producer transport for socket ${socket.id} and room : ${roomId}`,
+    );
+    await this.mediasoupService.connectTransport(
+      roomId,
+      socket.id,
+      true,
+      dtlsParameters,
+    );
+    return { success: true };
+  }
+
+  @SubscribeMessage('connectConsumerTransport')
+  async handleConnectConsumerTransport(
+    socket: Socket,
+    {
+      roomId,
+      dtlsParameters,
+    }: { roomId: string; dtlsParameters: mediasoup.types.DtlsParameters },
+  ) {
+    console.log(
+      `Connecting consumer transport for socket ${socket.id} and room : ${roomId}`,
+    );
+    await this.mediasoupService.connectTransport(
+      roomId,
+      socket.id,
+      false,
+      dtlsParameters,
+    );
     return { success: true };
   }
 
   @SubscribeMessage('transport-produce')
   async handleTransportProduce(
     socket: Socket,
-    { kind, rtpParameters, label }: { kind: mediasoup.types.MediaKind; rtpParameters: mediasoup.types.RtpParameters; label: string }
+    {
+      roomId,
+      kind,
+      rtpParameters,
+      label,
+    }: {
+      roomId: string;
+      kind: mediasoup.types.MediaKind;
+      rtpParameters: mediasoup.types.RtpParameters;
+      label: string;
+    },
   ) {
-    console.log(`Producing for socket ${socket.id}, kind: ${kind}, label: ${label}`);
-    const producerId = await this.mediasoupService.produce(socket.id, kind, rtpParameters, label);
-    console.log(`Produced, producer ID: ${producerId}`);
+    console.log(
+      `Producing for socket ${socket.id}, kind: ${kind}, label: ${label} and room : ${roomId}`,
+    );
+
+    const producerId = await this.mediasoupService.produce(
+      roomId,
+      socket.id,
+      kind,
+      rtpParameters,
+      label,
+    );
     return { id: producerId };
   }
 
-  @SubscribeMessage('connectConsumerTransport')
-  async handleConnectConsumerTransport(socket: Socket, { dtlsParameters }: { dtlsParameters: mediasoup.types.DtlsParameters }) {
-    console.log(`Connecting consumer transport for socket ${socket.id}`);
-    await this.mediasoupService.connectConsumerTransport(socket.id, dtlsParameters);
-    return { success: true };
-  }
-
   @SubscribeMessage('consumeMedia')
-  async handleConsumeMedia(socket: Socket, { rtpCapabilities }: { rtpCapabilities: mediasoup.types.RtpCapabilities }) {
+  async handleConsumeMedia(
+    socket: Socket,
+    {
+      roomId,
+      rtpCapabilities,
+      producerId,
+    }: {
+      roomId: string;
+      rtpCapabilities: mediasoup.types.RtpCapabilities;
+      producerId: string;
+    },
+  ) {
+    console.log(`Consuming media for socket ${socket.id} and room : ${roomId}`);
     try {
-      console.log(`Consuming media for socket ${socket.id}`);
-      const consumerParams = await this.mediasoupService.consume(socket.id, rtpCapabilities);
-      console.log(`Consumer params for socket ${socket.id}:`, consumerParams);
-      return { params: consumerParams };
-    } catch (error) {
-      console.error(`Error consuming media for socket ${socket.id}:`, error);
-      return { params: { error: error.message } };
+      const params = await this.mediasoupService.consume(
+        roomId,
+        socket.id,
+        rtpCapabilities,
+        producerId,
+      );
+      console.log(
+        `Consumer params for socket ${socket.id} and room : ${roomId}:`,
+        params,
+      );
+      return { params };
+    } catch (error: any) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : String(error || 'Unknown error');
+      return { params: { error: message } };
     }
   }
 
   @SubscribeMessage('resumePausedConsumers')
-  async handleResumePausedConsumers(socket: Socket, producerIds: string[]) {
-    console.log(`Resuming consumers for socket ${socket.id}, producerIds:`, producerIds);
-    await this.mediasoupService.resumeConsumer(socket.id, producerIds);
+  async handleResumePausedConsumers(
+    socket: Socket,
+    { roomId, producerId }: { roomId: string; producerId: string },
+  ) {
+    console.log(
+      `Resuming consumers for socket ${socket.id}, producerIds and room : ${roomId}:`,
+      producerId,
+    );
+    await this.mediasoupService.resumeConsumer(roomId, socket.id, producerId);
     return { success: true };
   }
 }
