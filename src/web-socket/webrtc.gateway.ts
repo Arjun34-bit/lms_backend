@@ -16,7 +16,7 @@ const redis = new Redis({
   db: envConstant.REDIS_DB
 });
 
-@WebSocketGateway({ cors: true })
+@WebSocketGateway({ namespace: '/webRTC',cors: true })
 export class WebrtcGateway implements OnGatewayInit {
   @WebSocketServer() server: Server;
 constructor(private prisma: PrismaService,private studentEmailService: EmailService) {

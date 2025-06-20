@@ -50,6 +50,17 @@ export class MediasoupService {
     }
   }
 
+
+  joinInstructor(roomId: string, role: string) {
+    if (role === "instructor") {
+      console.log(`Instructor joined class: ${roomId}`);
+      // socket.emit("joinInstructorResponse", {
+      //   message: `You have joined the class ${roomId}`,
+      //   roomId,
+      // });
+    }
+}
+
   async createRoom(roomId: string): Promise<Room> {
     if (this.rooms.has(roomId)) return this.rooms.get(roomId);
 
@@ -170,6 +181,7 @@ export class MediasoupService {
 
   getRouterRtpCapabilities(roomId: string) {
     const room = this.rooms.get(roomId);
+    console.log("room",room);
     if (!room) throw new Error(`Router not found for roomId: ${roomId}`);
     return room.router.rtpCapabilities;
   }
