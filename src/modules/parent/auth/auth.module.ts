@@ -5,7 +5,7 @@ import { ParentAuthController } from './controllers/auth.controller';
 import { ParentAuthService } from './services/auth.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { JwtParentStrategy } from './strategies/jwt.strategy';
-
+//import { JwtParentGoogleStrategy } from './strategies/jwt-parent-google.strategy';
 @Module({
     imports: [
         JwtModule.registerAsync({
@@ -17,6 +17,8 @@ import { JwtParentStrategy } from './strategies/jwt.strategy';
         }),
     ],
     controllers: [ParentAuthController],
-    providers: [ParentAuthService, JwtParentStrategy, PrismaService],
+    providers: [ParentAuthService, JwtParentStrategy, PrismaService,], 
 })
 export class ParentAuthModule { }
+
+// JwtParentGoogleStrategy

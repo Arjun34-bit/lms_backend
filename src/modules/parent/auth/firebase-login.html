@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Parent App Firebase Login</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 400px; margin: 20px auto; }
+    button { padding: 10px 15px; font-size: 16px; margin: 10px 0; width: 100%; }
+    #phone-section { margin-top: 20px; }
+    #recaptcha-container { margin: 10px 0; }
+  </style>
+</head>
+<body>
+  <h2>Login with Google or Phone</h2>
+
+  <button id="googleSignInBtn">Login with Google</button>
+
+  <div id="phone-section">
+    <input id="phoneNumber" type="tel" placeholder="+1 555 555 5555" style="width: 100%; padding: 10px; font-size: 16px;" />
+    <div id="recaptcha-container"></div>
+    <button id="sendCodeBtn">Send Verification Code</button>
+
+    <input id="verificationCode" type="text" placeholder="Enter verification code" style="width: 100%; padding: 10px; font-size: 16px; margin-top: 10px;" />
+    <button id="verifyCodeBtn">Verify Code</button>
+  </div>
+
+  <script>
+    // Your Firebase config from your C# class
+    const firebaseConfig = {
+      apiKey: "AIzaSyBa_nvuocb7atvfwioFA2LNJMZBkL2rc2w",
+      authDomain: "pcc-mobile-app-84266.firebaseapp.com",
+      projectId: "pcc-mobile-app-84266",
+      storageBucket: "pcc-mobile-app-84266.appspot.com",
+      messagingSenderId: "30873318956",
+      appId: "1:30873318956:web:35aae1bc2cc6c97ac18389",
+      measurementId: "G-1572PJXEVT"
+    };
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+
+    // Google Sign-In
+    document.getElementById('googleSignInBtn').addEventListener('click', () => {
+      const provider = new firebase.auth.GoogleAuthProvider();
+      auth.signInWithPopup(provider)
+        .then((result) => {
+          const user = result.user;
+          return user.getIdToken();
+        })
+        .then((token) => {
+          // Redirect with token in URL for MAUI app to catch
+          window.location.href = `/auth-success?token=${encodeURIComponent(token)}`;
+        })
+        .catch(error => {
+          alert("Google Sign-In failed: " + error.message);
+        });
+    });
+
+    // Phone Auth Recaptcha verifier
+    window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
+      size: 'normal',
+      callback: (response) => {
+        // reCAPTCHA solved
+        document.getElementById('sendCodeBtn').disabled = false;
+      },
+      'expired-callback': () => {
+        document.getElementById('sendCodeBtn').disabled = true;
+      }
+    });
+    recaptchaVerifier.render();
+
+    // Send SMS code
+    document.getElementById('sendCodeBtn').addEventListener('click', () => {
+      const phoneNumber = document.getElementById('phoneNumber').value;
+      if (!phoneNumber) {
+        alert("Please enter a phone number.");
+        return;
+      }
+      auth.signInWithPhoneNumber(phoneNumber, window.recaptchaVerifier)
+        .then((confirmationResult) => {
+          window.confirmationResult = confirmationResult;
+          alert("Verification code sent!");
+        })
+        .catch((error) => {
+          alert("Error sending SMS: " + error.message);
+        });
+    });
+
+    // Verify code
+    document.getElementById('verifyCodeBtn').addEventListener('click', () => {
+      const code = document.getElementById('verificationCode').value;
+      if (!code) {
+        alert("Please enter the verification code.");
+        return;
+      }
+      window.confirmationResult.confirm(code)
+        .then((result) => {
+          const user = result.user;
+          return user.getIdToken();
+        })
+        .then((token) => {
+          // Redirect with token in URL for MAUI app to catch
+          window.location.href = `/auth-success?token=${encodeURIComponent(token)}`;
+        })
+        .catch((error) => {
+          alert("Verification failed: " + error.message);
+        });
+    });
+  </script>
+</body>
+</html>

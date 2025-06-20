@@ -29,4 +29,31 @@ export class JwtParentStrategy extends PassportStrategy(Strategy, 'parent-jwt') 
 
         return payload;
     }
+//     async validate(payload: any) {
+//   try {
+//     console.log('✅ JWT Payload:', payload);
+
+//     const parent = await this.prisma.parent.findUnique({
+//       where: { id: payload.id }, // using parentId from payload
+//       include: { user: true }
+//     });
+
+//     if (!parent || parent.user.role !== 'parent') {
+//       throw new UnauthorizedException('Invalid token');
+//     }
+
+//     return {
+//       userId: parent.user.id,
+//       parentId: parent.id,
+//       email: parent.user.email,
+//       role: parent.user.role,
+//     };
+
+//   } catch (err) {
+//     console.error('❌ JWT validation error:', err);
+//     throw new UnauthorizedException('Invalid token or internal error');
+//   }
+// }
+
+
 }

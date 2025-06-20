@@ -24,6 +24,9 @@ import { VerifyEmailDto } from '../dto/verifyemail.dto';
 import { Response } from 'express';
 import { ApiUtilsService } from '@utils/utils.service';
 import { BadRequestException } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
+import { Put ,Patch } from '@nestjs/common';
+import { UpdateProfileDto } from '../dto/auth.dto'; // adjust path to where it's defined
 
 @Controller('parent/auth')
 export class ParentAuthController {
@@ -37,21 +40,11 @@ export class ParentAuthController {
     return this.authService.signup(dto);
   }
 
-  @Post('signin')
-  async signin(@Body() dto: ParentSigninDto) {
-    return this.authService.signin(dto);
-  }
-@Post('login-with-phone-number')
-async loginWithPhoneNumber(@Body() body: LoginWithPhoneNumberDto) {
-  const data = await this.authService.loginWithPhoneNumber(body.idToken);
-  return this.apiUtilsSevice.make_response(data);
+@Post('signin')
+async signin(@Body() dto: ParentSigninDto) {
+  return this.authService.signin(dto);
 }
 
-@Post('login-with-google')
-async loginWithGoogle(@Body() body: LoginWithGoogleDto) {
-  const data = await this.authService.loginWithGoogle(body.idToken);
-  return this.apiUtilsSevice.make_response(data);
-}
 
 
   @UseGuards(JwtParentAuthGuard)
@@ -92,6 +85,67 @@ async signupWithGoogle(@Body('token') idToken: string) {
   }
   return this.authService.signupWithGoogle(idToken);
 }
+@Post('login-with-google')
+async loginWithGoogle(@Body('token') idToken: string) {
+  if (!idToken) {
+    throw new BadRequestException('Token is required');
+  }
+  return this.authService.loginWithGoogle(idToken);
+}
+
+
+
+@Post('login-with-phone')
+
+async loginWithPhone(@Body('token') idToken: string) {
+  if (!idToken) {
+    throw new BadRequestException('Token is required');
+  }
+
+  const result = await this.authService.loginWithPhone(idToken);
+
+  // ✅ Check what’s being returned
+  console.log('Result:', result);
+
+  return result;
+}
+
+
+@Put('profile')
+@UseGuards(AuthGuard('parent-jwt'))
+async updateProfile(@GetUser() user: any, @Body() dto: UpdateProfileDto) {
+  return this.authService.updateParentProfile(user.parentId, dto);
+}
+
+  @Get('login-with-google')
+  async googleLoginPage(@Res() res: Response) {
+    // Replace with your actual hosted Google login page URL
+    return res.redirect('https://your-firebase-google-login-page-url.com');
+  }
+
+  // Redirect WebView to Firebase Phone login (or your hosted Phone login page)
+  @Get('login-with-phone')
+  async phoneLoginPage(@Res() res: Response) {
+    // Replace with your actual hosted Phone login page URL
+    return res.redirect('https://your-firebase-phone-login-page-url.com');
+  }
+  @Post('google-login')
+  async googleLogin(@Body('idToken') idToken: string) {
+    if (!idToken) {
+      throw new BadRequestException('ID token is required');
+    }
+
+    const user = await this.authService.verifyGoogleIdToken(idToken);
+    return { message: 'Login successful', user };
+  }
+
+  @Get('app-login-with-phone')
+  async appphoneLoginPage(@Res() res: Response) {
+    return res.send('Phone login test successful');
+  }
 
 
 }
+
+
+ 
