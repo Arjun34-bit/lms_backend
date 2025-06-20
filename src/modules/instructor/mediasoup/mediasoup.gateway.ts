@@ -9,7 +9,7 @@ import { MediasoupService } from './mediasoup.service';
 
 @WebSocketGateway({
   namespace: '/mediasoup',
-  cors: { origin: 'http://localhost:3000', credentials: true },
+  cors: { origin: process.env.ALLOWED_ORIGIN, credentials: true },
 })
 export class MediasoupGateway {
   @WebSocketServer() server: Server;
@@ -27,13 +27,63 @@ export class MediasoupGateway {
     this.mediasoupService.handleDisconnect(socket.id);
   }
 
+  @SubscribeMessage('leave-room')
+  async handleLeaveRoom(
+    socket: Socket,
+    { roomId, userName }: { roomId: string; userName: string }
+  ){
+    try {
+      console.log(`${userName} is leaving room ${roomId}`);
+
+      await this.mediasoupService.handleDisconnect(socket.id);
+
+      socket.leave(roomId);
+
+      socket.to(roomId).emit('user-left', {
+        message: `${userName} has left the meet.`,
+        userName,
+        socketId: socket.id,
+        roomId,
+      });
+
+      return { success: true };
+    } catch (error) {
+      console.error('Error handling leave-room:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+
+
+  @SubscribeMessage("join-instructor")
+  async handleJoinInstructor(socket:Socket,{roomId,role} : { roomId : string, role : string }){
+    try {
+      const response = await this.mediasoupService.joinInstructor(roomId,role)
+      return {
+      message: `You have joined the class ${roomId}`, 
+      data: response,
+    };
+    } catch (error) {
+      console.log(error);
+      throw new Error('Failed to Join Room or Create Room', error);
+    }
+  }
+
   @SubscribeMessage('join-room')
-  async handleJoinRoom(socket: Socket, { roomId }: { roomId: string }) {
+  async handleJoinRoom(socket: Socket, { roomId, userName }: { roomId: string, userName : string }) {
     try {
       console.log(`Socket ${socket.id} joining room: ${roomId}`);
       const room = await this.mediasoupService.createRoom(roomId);
       this.mediasoupService.addPeer(roomId, socket.id, socket);
       socket.join(roomId);
+
+      socket.to(roomId).emit('user-joined', {
+        message: `${userName} has joined the Meet.`,
+        userName,
+        socketId: socket.id,
+        roomId,
+      });
+
       return { joined: true, rtpCapabilities: room.router.rtpCapabilities };
     } catch (error) {
       console.log(error);
@@ -42,15 +92,17 @@ export class MediasoupGateway {
   }
 
   @SubscribeMessage('getRouterRtpCapabilities')
-  handleGetRtpCapabilities(socket: Socket, { roomId }: { roomId: string }) {
-    const routerRtpCapabilities =
-      this.mediasoupService.getRouterRtpCapabilities(roomId);
+  async handleGetRtpCapabilities(socket: Socket, { roomId }: { roomId: string }) {
+    console.log(
+      `Sending routerRtpCapabilities for socket ${socket.id}: and room ${roomId}`,
+    );
+    const room = await this.mediasoupService.createRoom(roomId);
     console.log(
       `Sending routerRtpCapabilities for socket ${socket.id}:`,
-      routerRtpCapabilities,
+      room.router.rtpCapabilities,
     );
 
-    return { routerRtpCapabilities };
+    return { routerRtpCapabilities: room.router.rtpCapabilities  };
   }
 
   @SubscribeMessage('createTransport')
