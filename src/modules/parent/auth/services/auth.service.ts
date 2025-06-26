@@ -462,5 +462,42 @@ async verifyGoogleIdToken(idToken: string) {
     throw new UnauthorizedException('Invalid or expired Google ID token');
   }
 }
+async findOrCreateParentUserFromGoogle(profile: {
+  id: string;
+  email: string;
+  name: string;
+  picture?: string;
+}) {
+  const user = await this.prisma.user.findFirst({
+    where: {
+      email: profile.email,
+      firebaseUid: profile.id, // assuming profile.id is Google UID
+      role: RoleEnum.parent,
+    },
+    include: {
+      parent: true,
+    },
+  });
+
+  if (user?.parent) return user.parent;
+
+  const newUser = await this.prisma.user.create({
+    data: {
+      name: profile.name,
+      email: profile.email,
+      firebaseUid: profile.id,
+      role: RoleEnum.parent,
+      verified: true,
+      parent: {
+        create: {},
+      },
+    },
+    include: {
+      parent: true,
+    },
+  });
+
+  return newUser.parent;
+}
 
 }

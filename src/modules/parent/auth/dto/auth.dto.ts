@@ -62,6 +62,28 @@ email?: string;
   @IsString()
   address?: string;
 }
+// export class LoginWithGoogleDtoapp {
+//   @IsNotEmpty()
+//   @IsString()
+//   @MinLength(10, { message: 'Code is too short to be a valid Google OAuth code' })
+//   code: string;
+
+//   @IsOptional()
+//   @IsString()
+//   clientId?: string;
+
+//   @IsOptional()
+//   @IsString()
+//   redirectUri?: string;
+
+//   @IsOptional()
+//   @IsString()
+//   provider?: 'google' | 'facebook' | 'apple'; // extensible
+// }
+export class LoginWithGoogleDtoapp {
+  code: string;
+}
+
 
 
 

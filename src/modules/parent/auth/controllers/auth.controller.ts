@@ -1,22 +1,8 @@
-import {
-  Body,
-  Controller,
-  Post,
-  UseGuards,
-  Get,
-  Param,
-  Query,
-  Res,
-} from '@nestjs/common';
+import {  Body,  Controller,  Post,  UseGuards,  Get,  Param,  Query,  Res,} from '@nestjs/common';
 import { ParentAuthService } from '../services/auth.service';
-import {
-  ConnectChildrenDto,
-  DisconnectChildrenDto,
-  LoginWithPhoneNumberDto,
-  LoginWithGoogleDto,
-  ParentSigninDto,
-  ParentSignupDto,
+import {  ConnectChildrenDto,  DisconnectChildrenDto,  LoginWithPhoneNumberDto,  LoginWithGoogleDto,  ParentSigninDto,  ParentSignupDto,
 } from '../dto/auth.dto';
+import { LoginWithGoogleDtoapp } from '../dto/auth.dto';
 import { GetUser } from 'src/common/decorators/user.decorator';
 import { JwtParentAuthGuard } from '../guards/jwt-parent.guard';
 import { envConstant } from '@constants/index';
@@ -27,12 +13,16 @@ import { BadRequestException } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { Put ,Patch } from '@nestjs/common';
 import { UpdateProfileDto } from '../dto/auth.dto'; // adjust path to where it's defined
-
+import { GoogleService } from '@modules/common/services/google/google.service';
+import { JwtService } from '@nestjs/jwt';
 @Controller('parent/auth')
 export class ParentAuthController {
   constructor(
     private readonly authService: ParentAuthService,
-    private readonly apiUtilsSevice: ApiUtilsService
+    private readonly apiUtilsSevice: ApiUtilsService,
+  private readonly apiUtilsService: ApiUtilsService,
+    private readonly googleService: GoogleService,
+      private readonly jwtService: JwtService,
   ) {}
 
   @Post('signup')
@@ -143,6 +133,43 @@ async updateProfile(@GetUser() user: any, @Body() dto: UpdateProfileDto) {
   async appphoneLoginPage(@Res() res: Response) {
     return res.send('Phone login test successful');
   }
+
+@Get('google/auth-url')
+getGoogleAuthUrl(@Res() res: Response) {
+  const url = this.googleService.generateAuthUrl();
+  return res.status(200).json({ url }); // ✅ Must end response
+}
+
+
+  // 2. Accept code and exchange tokens
+ @Post('login-with-google-from-app')
+async loginWithGoogleFromApp(@Body() dto: LoginWithGoogleDtoapp) {
+  const result = await this.googleService.exchangeCode(dto.code);
+
+  const parent = await this.authService.findOrCreateParentUserFromGoogle(result.profile);
+
+  const token = this.jwtService.sign({
+    id: parent.id,
+    email: result.profile.email,
+    role: 'parent',
+  });
+
+  return {
+    token,
+    parent,
+  };
+}
+
+@Get('google/callback')
+async googleRedirect(@Query('code') code: string, @Res() res: Response) {
+  if (!code) {
+    return res.status(400).json({ message: 'No code provided' });
+  }
+  const result = await this.googleService.exchangeCode(code);
+  const parent = await this.authService.findOrCreateParentUserFromGoogle(result.profile);
+  const token = this.jwtService.sign({ id: parent.id, email: result.profile.email, role: 'parent' });
+  return res.redirect(`${envConstant.CLIENT_BASE_URL}/parent/oauth-success?token=${token}`);
+}
 
 
 }
