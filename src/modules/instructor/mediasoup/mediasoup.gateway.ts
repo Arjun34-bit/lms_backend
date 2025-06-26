@@ -73,7 +73,10 @@ export class MediasoupGateway {
   async handleJoinRoom(socket: Socket, { roomId, userName }: { roomId: string, userName : string }) {
     try {
       console.log(`Socket ${socket.id} joining room: ${roomId}`);
-      const room = await this.mediasoupService.createRoom(roomId);
+      let room = await this.mediasoupService.getRoom(roomId);
+      if (!room) {
+        room = await this.mediasoupService.createRoom(roomId);
+      }
       this.mediasoupService.addPeer(roomId, socket.id, socket);
       socket.join(roomId);
 

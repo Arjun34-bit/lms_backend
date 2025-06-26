@@ -50,16 +50,15 @@ export class MediasoupService {
     }
   }
 
-
   joinInstructor(roomId: string, role: string) {
-    if (role === "instructor") {
+    if (role === 'instructor') {
       console.log(`Instructor joined class: ${roomId}`);
       // socket.emit("joinInstructorResponse", {
       //   message: `You have joined the class ${roomId}`,
       //   roomId,
       // });
     }
-}
+  }
 
   async createRoom(roomId: string): Promise<Room> {
     if (this.rooms.has(roomId)) return this.rooms.get(roomId);
@@ -97,6 +96,7 @@ export class MediasoupService {
   addPeer(roomId: string, peerId: string, socket: Socket) {
     const room = this.rooms.get(roomId);
     if (!room) throw new Error('Room not found');
+    console.log('PeerId id user', peerId);
 
     room.peers.set(peerId, {
       socket,
@@ -106,6 +106,21 @@ export class MediasoupService {
     });
 
     this.broadcastRoomUserCount(roomId);
+
+    for (const [existingPeerId, existingPeer] of room.peers.entries()) {
+      if (existingPeerId === peerId) continue;
+
+      for (const [key, producer] of existingPeer.producers.entries()) {
+        const [kind, label] = key.split(':');
+        socket.emit('new-producer', {
+          roomId,
+          producerId: producer.id,
+          peerId: existingPeerId,
+          kind,
+          label,
+        });
+      }
+    }
   }
 
   removePeer(roomId: string, peerId: string) {
@@ -181,9 +196,14 @@ export class MediasoupService {
 
   getRouterRtpCapabilities(roomId: string) {
     const room = this.rooms.get(roomId);
-    console.log("room",room);
+    console.log('room', room);
     if (!room) throw new Error(`Router not found for roomId: ${roomId}`);
     return room.router.rtpCapabilities;
+  }
+
+  async getRoom(roomId: string): Promise<Room> {
+    const room = this.rooms.get(roomId);
+    return room;
   }
 
   async createWebRtcTransport(roomId: string, peerId: string, sender: boolean) {
@@ -201,6 +221,8 @@ export class MediasoupService {
     console.log(
       `Transport created for room : ${roomId} and  peer ${peerId}: ${transport.id}`,
     );
+
+    console.log('Peers in createWebRTC', room.peers.values());
 
     const peer = room.peers.get(peerId);
     if (!peer) throw new Error('Peer not found');
@@ -252,12 +274,14 @@ export class MediasoupService {
     const producer = await transport.produce({ kind, rtpParameters });
     peer.producers.set(`${kind}:${label}`, producer);
 
+    console.log('Producers Id', producer?.id);
+
     for (const [otherId, otherPeer] of this.rooms.get(roomId).peers.entries()) {
       if (otherId !== peerId) {
-        console.log('new-producer-emitiing', otherId);
+        console.log('new-producer-emitiing', producer?.id);
         otherPeer.socket.to(roomId).emit('new-producer', {
           roomId,
-          producerId: producer.id,
+          producerId: producer?.id,
           peerId,
           kind,
           label,
