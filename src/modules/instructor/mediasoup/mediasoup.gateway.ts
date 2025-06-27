@@ -30,8 +30,8 @@ export class MediasoupGateway {
   @SubscribeMessage('leave-room')
   async handleLeaveRoom(
     socket: Socket,
-    { roomId, userName }: { roomId: string; userName: string }
-  ){
+    { roomId, userName }: { roomId: string; userName: string },
+  ) {
     try {
       console.log(`${userName} is leaving room ${roomId}`);
 
@@ -53,16 +53,17 @@ export class MediasoupGateway {
     }
   }
 
-
-
-  @SubscribeMessage("join-instructor")
-  async handleJoinInstructor(socket:Socket,{roomId,role} : { roomId : string, role : string }){
+  @SubscribeMessage('join-instructor')
+  async handleJoinInstructor(
+    socket: Socket,
+    { roomId, role }: { roomId: string; role: string },
+  ) {
     try {
-      const response = await this.mediasoupService.joinInstructor(roomId,role)
+      const response = await this.mediasoupService.joinInstructor(roomId, role);
       return {
-      message: `You have joined the class ${roomId}`, 
-      data: response,
-    };
+        message: `You have joined the class ${roomId}`,
+        data: response,
+      };
     } catch (error) {
       console.log(error);
       throw new Error('Failed to Join Room or Create Room', error);
@@ -70,9 +71,22 @@ export class MediasoupGateway {
   }
 
   @SubscribeMessage('join-room')
-  async handleJoinRoom(socket: Socket, { roomId, userName }: { roomId: string, userName : string }) {
+  async handleJoinRoom(
+    socket: Socket,
+    {
+      roomId,
+      userName,
+      role,
+    }: { roomId: string; userName: string; role: string },
+  ) {
     try {
       console.log(`Socket ${socket.id} joining room: ${roomId}`);
+      if (role === 'student') {
+        let room = await this.mediasoupService.getRoom(roomId);
+        if (!room) {
+          throw new Error('Room Not Found');
+        }
+      }
       let room = await this.mediasoupService.getRoom(roomId);
       if (!room) {
         room = await this.mediasoupService.createRoom(roomId);
@@ -95,7 +109,10 @@ export class MediasoupGateway {
   }
 
   @SubscribeMessage('getRouterRtpCapabilities')
-  async handleGetRtpCapabilities(socket: Socket, { roomId }: { roomId: string }) {
+  async handleGetRtpCapabilities(
+    socket: Socket,
+    { roomId }: { roomId: string },
+  ) {
     console.log(
       `Sending routerRtpCapabilities for socket ${socket.id}: and room ${roomId}`,
     );
@@ -105,7 +122,7 @@ export class MediasoupGateway {
       room.router.rtpCapabilities,
     );
 
-    return { routerRtpCapabilities: room.router.rtpCapabilities  };
+    return { routerRtpCapabilities: room.router.rtpCapabilities };
   }
 
   @SubscribeMessage('createTransport')

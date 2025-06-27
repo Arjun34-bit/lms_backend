@@ -57,6 +57,8 @@ export class MediasoupService {
       //   message: `You have joined the class ${roomId}`,
       //   roomId,
       // });
+    } else {
+      console.log(`Student joined class: ${roomId}`);
     }
   }
 
