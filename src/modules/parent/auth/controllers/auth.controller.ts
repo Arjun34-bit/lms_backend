@@ -160,15 +160,46 @@ async loginWithGoogleFromApp(@Body() dto: LoginWithGoogleDtoapp) {
   };
 }
 
+// @Get('google/callback')
+// async googleRedirect(@Query('code') code: string, @Res() res: Response) {
+//   if (!code) {
+//     return res.status(400).json({ message: 'No code provided' });
+//   }
+//   const result = await this.googleService.exchangeCode(code);
+//   const parent = await this.authService.findOrCreateParentUserFromGoogle(result.profile);
+//   const token = this.jwtService.sign({ id: parent.id, email: result.profile.email, role: 'parent' });
+//   return res.redirect(`${envConstant.CLIENT_BASE_URL}/parent/oauth-success?token=${token}`);
+// }
 @Get('google/callback')
 async googleRedirect(@Query('code') code: string, @Res() res: Response) {
-  if (!code) {
-    return res.status(400).json({ message: 'No code provided' });
+  try {
+    if (!code) {
+      return res.status(400).json({ message: 'No code provided' });
+    }
+
+    console.log('✅ Received Google auth code:', code);
+
+    const result = await this.googleService.exchangeCode(code);
+    console.log('✅ Google profile:', result.profile);
+
+    const parent = await this.authService.findOrCreateParentUserFromGoogle(result.profile);
+    console.log('✅ Parent user:', parent);
+
+  const token = this.jwtService.sign({
+  id: parent.id,
+  email: result.profile.email, // ✅ Use from Google profile
+  role: 'parent',
+});
+
+    const redirectUrl = `${envConstant.CLIENT_BASE_URL}/parent/oauth-success?token=${token}`;
+    console.log('✅ Redirecting to:', redirectUrl);
+
+    return res.redirect(redirectUrl);
+
+  } catch (err) {
+    console.error('❌ Google callback error:', err);
+    return res.status(500).json({ message: 'Internal server error', error: err.message });
   }
-  const result = await this.googleService.exchangeCode(code);
-  const parent = await this.authService.findOrCreateParentUserFromGoogle(result.profile);
-  const token = this.jwtService.sign({ id: parent.id, email: result.profile.email, role: 'parent' });
-  return res.redirect(`${envConstant.CLIENT_BASE_URL}/parent/oauth-success?token=${token}`);
 }
 
 
