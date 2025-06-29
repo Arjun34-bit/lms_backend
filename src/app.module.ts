@@ -21,6 +21,7 @@ import { WebSocketModule } from './web-socket/websocket.module';
 import { ParentModule } from '@modules/parent/parent.module';
 import { AdminModule } from '@modules/admin/admin.module';
 import { PaymentService } from './payment/payment.service';
+import { SupportModule } from '@modules/support/support.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { PaymentService } from './payment/payment.service';
     }),
     InstructorModule,
     StudentModule,
+    SupportModule,
     WebSocketModule,
     ParentModule,
     AdminModule,
