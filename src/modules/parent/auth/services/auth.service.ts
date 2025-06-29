@@ -270,7 +270,8 @@ export class ParentAuthService {
     return this.jwtService.sign({
       id: parent.id,
       email: parent.user.email,
-      role: 'parent'
+      role: 'parent',
+      userId: parent.user.id
     });
   }
 

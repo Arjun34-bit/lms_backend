@@ -12,6 +12,7 @@ enum RoleEnum {
   student
   instructor
   parent
+  support
 }
 
 enum CourseLevelEnum {
@@ -138,10 +139,96 @@ model User {
   instructor           Instructor?
   student              Student?
   parent               Parent?
+  support              Support?
   addedCourses         Course[]        @relation("AddedCourses")
   scheduledLiveClasses LiveClass[]     @relation("ScheduledClasses")
   notifications        Notification[]
   CommunityFeed        CommunityFeed[]
+
+  // Support System Relations
+  supportThreads        SupportThread[]    @relation("UserThreads")
+  sentMessages         SupportMessage[]   @relation("SentMessages")
+  receivedMessages     SupportMessage[]   @relation("ReceivedMessages")
+  forwardedMessages    ForwardedMessage[] @relation("ForwardedMessages")
+  messagesForwardedToMe ForwardedMessage[] @relation("MessagesForwardedToMe")
+  adminReplies         AdminToSupportReply[] @relation("AdminReplies")
+  supportReplies       AdminToSupportReply[] @relation("SupportReplies")
+}
+
+// Support System Models
+model SupportThread {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  user      User?     @relation("UserThreads", fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  messages          SupportMessage[]    @relation("ThreadMessages")
+  forwardedMessages ForwardedMessage[]  @relation("ThreadForwardedMessages")
+  adminReplies      AdminToSupportReply[] @relation("ThreadAdminReplies")
+}
+
+
+model Support {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId        String    @unique @db.ObjectId
+  qualification String?
+  experience    String?
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+}
+
+model SupportMessage {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  content      String
+  threadId     String   @db.ObjectId
+  thread       SupportThread @relation("ThreadMessages", fields: [threadId], references: [id])
+  senderId     String   @db.ObjectId
+  sender       User     @relation("SentMessages", fields: [senderId], references: [id])
+  receiverId   String?  @db.ObjectId
+  receiver     User?    @relation("ReceivedMessages", fields: [receiverId], references: [id])
+  role         RoleEnum
+  repliedToId  String?  @db.ObjectId
+  repliedTo    SupportMessage? @relation("MessageReplies", fields: [repliedToId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  replies      SupportMessage[] @relation("MessageReplies")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  forwardedMessages ForwardedMessage[] @relation("OriginalMessage")
+}
+
+model ForwardedMessage {
+  id               String   @id @default(auto()) @map("_id") @db.ObjectId
+  originalMessageId String  @db.ObjectId
+  originalMessage   SupportMessage @relation("OriginalMessage", fields: [originalMessageId], references: [id])
+  forwardedById     String  @db.ObjectId
+  forwardedBy       User    @relation("ForwardedMessages", fields: [forwardedById], references: [id])
+  forwardedToId     String? @db.ObjectId
+  forwardedTo       User?   @relation("MessagesForwardedToMe", fields: [forwardedToId], references: [id])
+  content           String  // Additional context from support agent
+  threadId          String  @db.ObjectId
+  thread            SupportThread @relation("ThreadForwardedMessages", fields: [threadId], references: [id])
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  adminReplies AdminToSupportReply[] @relation("ForwardedMessageReplies")
+}
+
+model AdminToSupportReply {
+  id                String   @id @default(auto()) @map("_id") @db.ObjectId
+  content           String
+  adminId           String   @db.ObjectId
+  admin             User     @relation("AdminReplies", fields: [adminId], references: [id])
+  forwardedMessageId String  @db.ObjectId
+  forwardedMessage   ForwardedMessage @relation("ForwardedMessageReplies", fields: [forwardedMessageId], references: [id])
+  threadId          String   @db.ObjectId
+  thread            SupportThread @relation("ThreadAdminReplies", fields: [threadId], references: [id])
+  supportAgentId    String   @db.ObjectId
+  supportAgent      User     @relation("SupportReplies", fields: [supportAgentId], references: [id])
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 }
 
 model Admin {
