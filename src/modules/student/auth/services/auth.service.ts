@@ -39,15 +39,12 @@ export class AuthService {
       const hashedPassword = await bcrypt.hash(data.password, 10);
       const verificationToken = this.jwtService.sign(
         { email: data.email, role: RoleEnum.student },
-        { expiresIn: '1h' }
+        { expiresIn: '1h' },
       );
 
       const createdUser = await this.prisma.student.create({
-
         data: {
-
           user: {
-
             create: {
               email: data.email?.toLowerCase(),
               password: hashedPassword,
@@ -56,7 +53,6 @@ export class AuthService {
               verified: false,
             },
           },
-          
         },
         include: {
           user: true,
@@ -70,7 +66,7 @@ export class AuthService {
           email: data.email,
           role: RoleEnum.student,
         }),
-        60 * 60 * 1000 // 1 hour expiry
+        60 * 60 * 1000, // 1 hour expiry
       );
 
       const payload = {
@@ -142,7 +138,7 @@ export class AuthService {
             role: RoleEnum.student,
             firebaseUid: firebaseUser.uid,
             verified: true, // Mark as verified
-            student: {}
+            student: {},
           },
         });
       }
@@ -222,5 +218,59 @@ export class AuthService {
     }
   }
 
+  async googleLogin(idToken: string) {
+    try {
+      // Verify the ID token with Firebase Admin SDK
+      const decodedToken = await firebaseAuth.verifyIdToken(idToken);
+      const { email, name, uid } = decodedToken;
+      if (!email) {
+        throw new BadRequestException('Invalid Google account');
+      }
 
+      // Check if the user already exists
+      let user: any = await this.prisma.user.findUnique({
+        where: { email },
+        include: {
+          student: {
+            select: {
+              id: true,
+            },
+          },
+        },
+      });
+      if (!user) {
+        // If user doesn't exist, create a new user
+        user = await this.prisma.user.create({
+          data: {
+            name: name || 'Google User',
+            email: email.toLowerCase(),
+            password: null, // No password for Google users
+            role: RoleEnum.student,
+            firebaseUid: uid,
+            verified: true,
+            student: {
+              create: {},
+            },
+            // googleId: uid, // Save Firebase UID for reference
+          },
+        });
+      }
+
+      // Generate JWT payload
+      const payload = {
+        userId: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        student: user?.student?.id,
+      };
+      return {
+        access_token: this.jwtService.sign(payload),
+        user: payload,
+      };
+    } catch (error) {
+      Logger.error('Error during Google login: ', error?.stack);
+      throw new BadRequestException('Invalid Google token');
+    }
+  }
 }

@@ -4,6 +4,7 @@ import { Socket } from 'socket.io';
 
 interface Peer {
   socket: Socket;
+  announcedProducers: Set<string>;
   transports: {
     producer?: mediasoup.types.WebRtcTransport;
     consumer?: mediasoup.types.WebRtcTransport;
@@ -105,6 +106,7 @@ export class MediasoupService {
       transports: {},
       producers: new Map(),
       consumers: new Map(),
+      announcedProducers: new Set(),
     });
 
     this.broadcastRoomUserCount(roomId);
@@ -114,6 +116,13 @@ export class MediasoupService {
 
       for (const [key, producer] of existingPeer.producers.entries()) {
         const [kind, label] = key.split(':');
+
+        const alreadyAnnounced = room.peers
+          .get(peerId)
+          ?.announcedProducers?.has(producer.id);
+
+        if (alreadyAnnounced) continue;
+
         socket.emit('new-producer', {
           roomId,
           producerId: producer.id,
@@ -121,6 +130,12 @@ export class MediasoupService {
           kind,
           label,
         });
+
+        room.peers.get(peerId)?.announcedProducers?.add(producer.id);
+
+        console.log(
+          `[addPeer] Notified peer ${peerId} of producer ${producer.id} from ${existingPeerId}`,
+        );
       }
     }
   }
@@ -203,13 +218,18 @@ export class MediasoupService {
     return room.router.rtpCapabilities;
   }
 
-  async getRoom(roomId: string): Promise<Room> {
+  async getRoom(roomId: string, role: string, socket: Socket): Promise<Room> {
     const room = this.rooms.get(roomId);
-    return room;
+    if (role === 'student') {
+      if (!room) {
+        throw new Error('Room Not Found');
+      }
+    } else {
+      return room;
+    }
   }
 
   async createWebRtcTransport(roomId: string, peerId: string, sender: boolean) {
-    console.log('roomId', roomId);
     const room = this.rooms.get(roomId);
     if (!room) throw new Error('Room not found');
 
@@ -257,7 +277,7 @@ export class MediasoupService {
       );
     } else {
       console.log(
-        `Consumer transport connected for room : ?${roomId} and peer ${peerId}`,
+        `Consumer transport connected for room : ${roomId} and peer ${peerId}`,
       );
     }
   }
@@ -268,6 +288,7 @@ export class MediasoupService {
     kind: mediasoup.types.MediaKind,
     rtpParameters: mediasoup.types.RtpParameters,
     label: string = '',
+    socket: Socket
   ) {
     const peer = this.rooms.get(roomId)?.peers.get(peerId);
     const transport = peer?.transports.producer;
@@ -280,15 +301,21 @@ export class MediasoupService {
 
     for (const [otherId, otherPeer] of this.rooms.get(roomId).peers.entries()) {
       if (otherId !== peerId) {
-        console.log('new-producer-emitiing', producer?.id);
-        otherPeer.socket.to(roomId).emit('new-producer', {
+        if (otherPeer.announcedProducers?.has(producer.id)) continue;
+
+        console.log('new-producer-emitiing', peerId);
+        console.log('new-producer-emitiing', socket?.id);
+        socket.to(roomId).emit('new-producer', {
           roomId,
-          producerId: producer?.id,
-          peerId,
+          producerId: producer.id,
+          peerId:socket.id,
           kind,
           label,
         });
       }
+
+      otherPeer.announcedProducers ??= new Set();
+      otherPeer.announcedProducers.add(producer.id);
     }
 
     producer.on('transportclose', () => {
@@ -321,7 +348,7 @@ export class MediasoupService {
     const consumer = await transport.consume({
       producerId,
       rtpCapabilities,
-      paused: producer.kind === 'video',
+      paused: true,
     });
     peer.consumers.set(producer.id, consumer);
 
@@ -343,11 +370,31 @@ export class MediasoupService {
   }
 
   async resumeConsumer(roomId: string, peerId: string, producerId: string) {
-    const consumer = this.rooms
-      .get(roomId)
-      ?.peers.get(peerId)
-      ?.consumers.get(producerId);
-    console.log('Resuming the stream for room :', roomId);
-    if (consumer) await consumer.resume();
+    const room = this.rooms.get(roomId);
+    if (!room) {
+      console.log(`Room not found: ${roomId}`);
+      return;
+    }
+
+    const peer = room.peers.get(peerId);
+    if (!peer) {
+      console.log(`Peer not found: ${peerId}`);
+      return;
+    }
+
+    const consumer = peer.consumers.get(producerId);
+    if (!consumer) {
+      console.log(`Consumer not found for producerId: ${producerId}`);
+      return;
+    }
+
+    try {
+      console.log(`Resuming consumer for room: ${roomId}, peer: ${peerId}`);
+      await consumer.resume();
+      console.log('Consumer resumed successfully.');
+    } catch (err) {
+      console.error('Error resuming consumers:', err);
+      throw new Error('Error resuming consumer');
+    }
   }
 }

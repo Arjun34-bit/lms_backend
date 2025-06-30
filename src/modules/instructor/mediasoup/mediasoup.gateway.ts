@@ -9,7 +9,7 @@ import { MediasoupService } from './mediasoup.service';
 
 @WebSocketGateway({
   namespace: '/mediasoup',
-  cors: { origin: process.env.ALLOWED_ORIGIN, credentials: true },
+  cors: { origin: process.env.ALLOWED_ORIGIN?.split(','), credentials: true },
 })
 export class MediasoupGateway {
   @WebSocketServer() server: Server;
@@ -82,12 +82,9 @@ export class MediasoupGateway {
     try {
       console.log(`Socket ${socket.id} joining room: ${roomId}`);
       if (role === 'student') {
-        let room = await this.mediasoupService.getRoom(roomId);
-        if (!room) {
-          throw new Error('Room Not Found');
-        }
+        let room = await this.mediasoupService.getRoom(roomId,role,socket);
       }
-      let room = await this.mediasoupService.getRoom(roomId);
+      let room = await this.mediasoupService.getRoom(roomId,role,socket);
       if (!room) {
         room = await this.mediasoupService.createRoom(roomId);
       }
@@ -103,8 +100,9 @@ export class MediasoupGateway {
 
       return { joined: true, rtpCapabilities: room.router.rtpCapabilities };
     } catch (error) {
-      console.log(error);
-      throw new Error('Failed to Join Room or Create Room', error);
+      // console.log(error);
+      return { params: { error: error.message } }
+      // throw new Error('Failed to Join Room or Create Room', error);
     }
   }
 
@@ -219,6 +217,7 @@ export class MediasoupGateway {
       kind,
       rtpParameters,
       label,
+      socket
     );
     return { id: producerId };
   }
