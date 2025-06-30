@@ -29,7 +29,7 @@ export class AuthService {
       const existingUser = await this.prisma.user.findUnique({
         where: {
           email: data.email?.toLowerCase(),
-        }, 
+        },
       });
 
       if (existingUser) {
@@ -147,7 +147,7 @@ export class AuthService {
           userId: user.id,
         },
         select: {
-          id: true, 
+          id: true,
         },
       });
       // Payload to return after verification/login/signup
@@ -215,62 +215,6 @@ export class AuthService {
         Logger.error(error?.stack);
       }
       throw error;
-    }
-  }
-
-  async googleLogin(idToken: string) {
-    try {
-      // Verify the ID token with Firebase Admin SDK
-      const decodedToken = await firebaseAuth.verifyIdToken(idToken);
-      const { email, name, uid } = decodedToken;
-      if (!email) {
-        throw new BadRequestException('Invalid Google account');
-      }
-
-      // Check if the user already exists
-      let user: any = await this.prisma.user.findUnique({
-        where: { email },
-        include: {
-          student: {
-            select: {
-              id: true,
-            },
-          },
-        },
-      });
-      if (!user) {
-        // If user doesn't exist, create a new user
-        user = await this.prisma.user.create({
-          data: {
-            name: name || 'Google User',
-            email: email.toLowerCase(),
-            password: null, // No password for Google users
-            role: RoleEnum.student,
-            firebaseUid: uid,
-            verified: true,
-            student: {
-              create: {},
-            },
-            // googleId: uid, // Save Firebase UID for reference
-          },
-        });
-      }
-
-      // Generate JWT payload
-      const payload = {
-        userId: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        student: user?.student?.id,
-      };
-      return {
-        access_token: this.jwtService.sign(payload),
-        user: payload,
-      };
-    } catch (error) {
-      Logger.error('Error during Google login: ', error?.stack);
-      throw new BadRequestException('Invalid Google token');
     }
   }
 }
