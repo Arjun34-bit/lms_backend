@@ -36,6 +36,12 @@ export class StudentAuthController {
     return this.apiUtilsSevice.make_response(data);
   }
 
+  @Post('google-login')
+  async googleLogin(@Body('idToken') idToken: string): Promise<ApiResponseT> {
+    const data = await this.authService.googleLogin(idToken);
+    return this.apiUtilsSevice.make_response(data);
+  }
+
   @Get('verify-email')
   async verifyEmail(@Query() queryDto: VerifyEmailDto, @Res() res: Response) {
     const data = await this.authService.verifyEmail(queryDto.token);

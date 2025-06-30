@@ -18,11 +18,21 @@ export class JwtParentStrategy extends PassportStrategy(Strategy, 'parent-jwt') 
 
     async validate(payload: any) {
         console.log(payload);
+        if (!payload || !payload.id) {
+            throw new UnauthorizedException('Invalid token');
+        }
         const parent = await this.prisma.parent.findUnique({
-            where: { id: payload.userId || payload.id },
+            where: { id:  payload.id },
             include: { user: true }
         });
+console.log("rehancbhai");
+        
+        // Check if the user exists and is verified
+        if (!parent || !parent.user || !parent.user.verified) {
+            throw new UnauthorizedException('Invalid token');
+        }
 
+        // Check if the user has the 'parent' role
         if (!parent || parent.user.role !== 'parent') {
             throw new UnauthorizedException('Invalid token');
         }

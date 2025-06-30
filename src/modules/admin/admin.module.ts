@@ -12,6 +12,7 @@ import { DepartmentModule } from './department/department.module';
 import { AdminStudentModule } from './student/student.module';
 import { InstructorModule } from '@modules/instructor/instructor.module';
 import { AdminInstructorModule } from './instructor/instructor.module';
+import { AdminSupportModule } from './support/support.module';
 
 @Module({
     imports: [
@@ -25,7 +26,8 @@ import { AdminInstructorModule } from './instructor/instructor.module';
         SubjectModule,
         DepartmentModule,
         AdminStudentModule,
-        AdminInstructorModule
+        AdminInstructorModule,
+        AdminSupportModule
         // LiveClassModule
     ],
 })

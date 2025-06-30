@@ -3,6 +3,7 @@ import {
   Inject,
   Injectable,
   Logger,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import * as bcrypt from 'bcryptjs';
@@ -59,14 +60,13 @@ export class AuthService {
         },
       });
 
-      // Store verification token in cache
       await this.cacheManager.set(
         `user-verification:${verificationToken}`,
         JSON.stringify({
           email: data.email,
           role: RoleEnum.student,
         }),
-        60 * 60 * 1000, // 1 hour expiry
+        60 * 60 * 1000, // 1 hour
       );
 
       const payload = {
@@ -83,10 +83,10 @@ export class AuthService {
 
       return payload;
     } catch (error) {
-      if (error.statusCode === 500) {
-        Logger.error(error?.stack);
-      }
-      throw error;
+      Logger.error(error?.stack || error?.message || error);
+      throw error instanceof BadRequestException
+        ? error
+        : new BadRequestException('Something went wrong during signup');
     }
   }
 
@@ -94,12 +94,14 @@ export class AuthService {
     try {
       const cacheKey = `user-verification:${verificationToken}`;
       const userData: any = await this.cacheManager.get(cacheKey);
+
       if (!userData) {
-        throw new BadRequestException('Invalid link or link has been expired');
+        throw new BadRequestException('Invalid or expired verification link');
       }
+
       const user = JSON.parse(userData);
 
-      const userUpdated = await this.prisma.user.update({
+      await this.prisma.user.update({
         where: {
           email: user?.email,
           role: user?.role,
@@ -109,21 +111,26 @@ export class AuthService {
         },
       });
 
-      // Remove the verification token from cache after successful verification
       await this.cacheManager.del(cacheKey);
 
       return { message: 'Student account has been verified successfully' };
     } catch (error) {
-      if (error.statusCode === 500) {
-        Logger.error(error?.stack);
-      }
-      throw error;
+      Logger.error(error?.stack || error?.message || error);
+      throw error instanceof BadRequestException
+        ? error
+        : new BadRequestException('Something went wrong during verification');
     }
   }
 
   async loginWithPhoneNumber(idToken: string) {
     try {
-      const decodedToken = await firebaseAuth.verifyIdToken(idToken);
+      let decodedToken;
+      try {
+        decodedToken = await firebaseAuth.verifyIdToken(idToken);
+      } catch {
+        throw new UnauthorizedException('Invalid or expired Firebase ID token');
+      }
+
       const firebaseUser = await firebaseAuth.getUser(decodedToken.uid);
 
       let user = await this.prisma.user.findFirst({
@@ -137,20 +144,17 @@ export class AuthService {
             email: firebaseUser.email ?? null,
             role: RoleEnum.student,
             firebaseUid: firebaseUser.uid,
-            verified: true, // Mark as verified
+            verified: true,
             student: {},
           },
         });
       }
+
       const student = await this.prisma.student.findUnique({
-        where: {
-          userId: user.id,
-        },
-        select: {
-          id: true,
-        },
+        where: { userId: user.id },
+        select: { id: true },
       });
-      // Payload to return after verification/login/signup
+
       const payload = {
         userId: user.id,
         name: user.name,
@@ -164,10 +168,74 @@ export class AuthService {
         user: payload,
       };
     } catch (error) {
-      if (error.statusCode === 500) {
-        Logger.error(error?.stack);
+      Logger.error(error?.stack || error?.message || error);
+      throw error instanceof UnauthorizedException
+        ? error
+        : new BadRequestException('Phone login failed');
+    }
+  }
+
+  async googleLogin(idToken: string) {
+    try {
+      let decodedToken;
+      try {
+        decodedToken = await firebaseAuth.verifyIdToken(idToken);
+      } catch {
+        throw new UnauthorizedException('Invalid or expired Google ID token');
       }
-      throw error;
+
+      const { email, name, uid } = decodedToken;
+
+      if (!email) {
+        throw new BadRequestException('Invalid Google account');
+      }
+
+      let user = await this.prisma.user.findUnique({
+        where: { email },
+        include: {
+          student: {
+            select: { id: true },
+          },
+        },
+      });
+
+      if (!user) {
+        user = await this.prisma.user.create({
+          data: {
+            name: name || 'Google User',
+            email: email.toLowerCase(),
+            password: null,
+            role: RoleEnum.student,
+            firebaseUid: uid,
+            verified: true,
+            student: {
+              create: {},
+            },
+          },
+          include: {
+            student: { select: { id: true } },
+          },
+        });
+      }
+
+      const payload = {
+        userId: user.id,
+        name: user.name,
+        email: user.email,
+        role: RoleEnum.student,
+        studentId: user.student.id,
+      };
+
+      return {
+        access_token: this.jwtService.sign(payload),
+        user: payload,
+      };
+    } catch (error) {
+      Logger.error(error?.stack || error?.message || error);
+      throw error instanceof UnauthorizedException ||
+        error instanceof BadRequestException
+        ? error
+        : new BadRequestException('Google login failed');
     }
   }
 
@@ -176,11 +244,7 @@ export class AuthService {
       const user = await this.prisma.user.findUnique({
         where: { email: email.toLowerCase() },
         include: {
-          student: {
-            select: {
-              id: true,
-            },
-          },
+          student: { select: { id: true } },
         },
       });
 
@@ -211,10 +275,10 @@ export class AuthService {
         user: payload,
       };
     } catch (error) {
-      if (error.statusCode === 500) {
-        Logger.error(error?.stack);
-      }
-      throw error;
+      Logger.error(error?.stack || error?.message || error);
+      throw error instanceof BadRequestException
+        ? error
+        : new BadRequestException('Login failed');
     }
   }
 }
