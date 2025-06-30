@@ -162,13 +162,66 @@ async loginWithGoogleFromApp(@Body() dto: LoginWithGoogleDtoapp) {
 
 // @Get('google/callback')
 // async googleRedirect(@Query('code') code: string, @Res() res: Response) {
-//   if (!code) {
-//     return res.status(400).json({ message: 'No code provided' });
+//   try {
+//     if (!code) {
+//       return res.status(400).json({ message: 'No code provided' });
+//     }
+
+//     console.log('✅ Received Google auth code:', code);
+
+//     const result = await this.googleService.exchangeCode(code);
+//     console.log('✅ Google profile:', result.profile);
+
+//     const parent = await this.authService.findOrCreateParentUserFromGoogle(result.profile);
+//     console.log('✅ Parent user:', parent);
+
+//   const token = this.jwtService.sign({
+//   id: parent.id,
+//   email: result.profile.email, // ✅ Use from Google profile
+//   role: 'parent',
+// });
+
+//     const redirectUrl = `${envConstant.CLIENT_BASE_URL}/parent/oauth-success?token=${token}`;
+//     console.log('✅ Redirecting to:', redirectUrl);
+
+//     return res.redirect(redirectUrl);
+
+//   } catch (err) {
+//     console.error('❌ Google callback error:', err);
+//     return res.status(500).json({ message: 'Internal server error', error: err.message });
 //   }
-//   const result = await this.googleService.exchangeCode(code);
-//   const parent = await this.authService.findOrCreateParentUserFromGoogle(result.profile);
-//   const token = this.jwtService.sign({ id: parent.id, email: result.profile.email, role: 'parent' });
-//   return res.redirect(`${envConstant.CLIENT_BASE_URL}/parent/oauth-success?token=${token}`);
+// }
+// @Get('google/callback')
+// async googleRedirect(@Query('code') code: string, @Res() res: Response) {
+//   try {
+//     if (!code) {
+//       return res.status(400).json({ message: 'No code provided' });
+//     }
+
+//     console.log('✅ Received Google auth code:', code);
+
+//     const result = await this.googleService.exchangeCode(code);
+//     console.log('✅ Google profile:', result.profile);
+
+//     const parent = await this.authService.findOrCreateParentUserFromGoogle(result.profile);
+//     console.log('✅ Parent user:', parent);
+
+//     const token = this.jwtService.sign({
+//       id: parent.id,
+//       email: result.profile.email,
+//       role: 'parent',
+//     });
+
+//     // ✅ Use a custom URI scheme the MAUI app can listen to
+//     const redirectUrl = `myapp://auth-success?token=${token}`;
+//     console.log('✅ Redirecting to:', redirectUrl);
+
+//     return res.redirect(redirectUrl);
+
+//   } catch (err) {
+//     console.error('❌ Google callback error:', err);
+//     return res.status(500).json({ message: 'Internal server error', error: err.message });
+//   }
 // }
 @Get('google/callback')
 async googleRedirect(@Query('code') code: string, @Res() res: Response) {
@@ -177,30 +230,32 @@ async googleRedirect(@Query('code') code: string, @Res() res: Response) {
       return res.status(400).json({ message: 'No code provided' });
     }
 
-    console.log('✅ Received Google auth code:', code);
-
+    // Step 1: Exchange code for token + profile
     const result = await this.googleService.exchangeCode(code);
-    console.log('✅ Google profile:', result.profile);
 
+    // Step 2: Get or create user in DB
     const parent = await this.authService.findOrCreateParentUserFromGoogle(result.profile);
-    console.log('✅ Parent user:', parent);
 
-  const token = this.jwtService.sign({
-  id: parent.id,
-  email: result.profile.email, // ✅ Use from Google profile
-  role: 'parent',
-});
+    // Step 3: Sign JWT for app session
+    const token = this.jwtService.sign({
+      id: parent.userId,
+      email: result.profile.email,
+      role: 'parent',
+    });
 
-    const redirectUrl = `${envConstant.CLIENT_BASE_URL}/parent/oauth-success?token=${token}`;
-    console.log('✅ Redirecting to:', redirectUrl);
-
+    // Step 4: Redirect to MAUI app with token
+    const redirectUrl = `myapp://auth-success?token=${token}`;
     return res.redirect(redirectUrl);
 
   } catch (err) {
     console.error('❌ Google callback error:', err);
-    return res.status(500).json({ message: 'Internal server error', error: err.message });
+    return res.status(500).json({
+      message: 'Internal server error',
+      error: err.message || 'Unknown error',
+    });
   }
 }
+
 
 
 }

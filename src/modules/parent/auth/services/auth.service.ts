@@ -463,42 +463,81 @@ async verifyGoogleIdToken(idToken: string) {
     throw new UnauthorizedException('Invalid or expired Google ID token');
   }
 }
+// async findOrCreateParentUserFromGoogle(profile: {
+//   id: string;
+//   email: string;
+//   name: string;
+//   picture?: string;
+// }) {
+//   const user = await this.prisma.user.findFirst({
+//     where: {
+//       email: profile.email,
+//       firebaseUid: profile.id, // assuming profile.id is Google UID
+//       role: RoleEnum.parent,
+//     },
+//     include: {
+//       parent: true,
+//     },
+//   });
+
+//   if (user?.parent) return user.parent;
+
+//   const newUser = await this.prisma.user.create({
+//     data: {
+//       name: profile.name,
+//       email: profile.email,
+//       firebaseUid: profile.id,
+//       role: RoleEnum.parent,
+//       verified: true,
+//       parent: {
+//         create: {},
+//       },
+//     },
+//     include: {
+//       parent: true,
+//     },
+//   });
+
+//   return newUser.parent;
+// }
+
 async findOrCreateParentUserFromGoogle(profile: {
   id: string;
   email: string;
   name: string;
   picture?: string;
 }) {
-  const user = await this.prisma.user.findFirst({
-    where: {
-      email: profile.email,
-      firebaseUid: profile.id, // assuming profile.id is Google UID
-      role: RoleEnum.parent,
-    },
-    include: {
-      parent: true,
-    },
-  });
+  const email = profile.email.toLowerCase();
 
-  if (user?.parent) return user.parent;
-
-  const newUser = await this.prisma.user.create({
-    data: {
+  // Step 1: Upsert ensures no duplicate email issue
+  const user = await this.prisma.user.upsert({
+    where: { email },
+    update: {}, // No changes to update now
+    create: {
       name: profile.name,
-      email: profile.email,
-      firebaseUid: profile.id,
+      email,
+      firebaseUid: profile.id, // Google UID
       role: RoleEnum.parent,
       verified: true,
-      parent: {
-        create: {},
-      },
-    },
-    include: {
-      parent: true,
+    
     },
   });
 
-  return newUser.parent;
+  // Step 2: Check if parent exists
+  let parent = await this.prisma.parent.findUnique({
+    where: { userId: user.id },
+  });
+
+  // Step 3: Create parent if not exists
+  if (!parent) {
+    parent = await this.prisma.parent.create({
+      data: {
+        user: { connect: { id: user.id } },
+      },
+    });
+  }
+
+  return parent;
 }
 
 }
