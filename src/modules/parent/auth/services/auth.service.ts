@@ -8,6 +8,7 @@ import { RoleEnum } from '@prisma/client';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import { firebaseAuth } from 'src/config/firebase.config';
+import { UpdateProfileDto } from '../dto/auth.dto'; // Adjust path as needed
 
 
 
@@ -75,6 +76,7 @@ export class ParentAuthService {
       message: 'Signup successful. Please verify your email to continue.',
     };
   }
+
   async verifyEmail(verificationToken: string) {
     try {
       const cacheKey = `user-verification:${verificationToken}`;
@@ -104,61 +106,65 @@ export class ParentAuthService {
       }
       throw error;
     }
-  }  async loginWithPhoneNumber(idToken: string) {
-    try {
-      const decodedToken = await firebaseAuth.verifyIdToken(idToken);
-      const firebaseUser = await firebaseAuth.getUser(decodedToken.uid);
+  }
+  
 
-      let user = await this.prisma.user.findFirst({
-        where: { firebaseUid: firebaseUser.uid },
-      });
+  //   try {
+  //     const decodedToken = await firebaseAuth.verifyIdToken(idToken);
+  //     const firebaseUser = await firebaseAuth.getUser(decodedToken.uid);
 
-      if (!user) {
-        user = await this.prisma.user.create({
-          data: {
-            name: firebaseUser.displayName ?? 'Unknown User',
-            email: firebaseUser.email ?? null,
-            role: RoleEnum.parent,
-            firebaseUid: firebaseUser.uid,
-            verified: true, // Phone-based login is automatically verified
-            phoneNumber: firebaseUser.phoneNumber,
-            parent: {
-              create: {},
-            },
-          },
-          include: {
-            parent: true
-          }
-        });
-      }
-      const parent = await this.prisma.parent.findUnique({
-        where: {
-          userId: user.id,
-        },
-        select: {
-          id: true,
-        },
-      });
-      // Payload to return after verification/login/signup
-      const payload = {
-        userId: user.id,
-        name: user.name,
-        email: user.email,
-        role: RoleEnum.parent,
-        parentId: parent.id,
-      };
+  //     let user = await this.prisma.user.findFirst({
+  //       where: { firebaseUid: firebaseUser.uid },
+  //     });
 
-      return {
-        access_token: this.jwtService.sign(payload),
-        user: payload,
-      };
-    } catch (error) {
-      if (error.statusCode === 500) {
-        Logger.error(error?.stack);
-      }
-      throw error;
-    }
-  }  async signin(dto: ParentSigninDto) {
+  //     if (!user) {
+  //       user = await this.prisma.user.create({
+  //         data: {
+  //           name: firebaseUser.displayName ?? 'Unknown User',
+  //           email: firebaseUser.email ?? null,
+  //           role: RoleEnum.parent,
+  //           firebaseUid: firebaseUser.uid,
+  //           verified: true, // Phone-based login is automatically verified
+  //           phoneNumber: firebaseUser.phoneNumber,
+  //           parent: {
+  //             create: {},
+  //           },
+  //         },
+  //         include: {
+  //           parent: true
+  //         }
+  //       });
+  //     }
+  //     const parent = await this.prisma.parent.findUnique({
+  //       where: {
+  //         userId: user.id,
+  //       },
+  //       select: {
+  //         id: true,
+  //       },
+  //     });
+  //     // Payload to return after verification/login/signup
+  //     const payload = {
+  //       userId: user.id,
+  //       name: user.name,
+  //       email: user.email,
+  //       role: RoleEnum.parent,
+  //       parentId: parent.id,
+  //     };
+
+  //     return {
+  //       access_token: this.jwtService.sign(payload),
+  //       user: payload,
+  //     };
+  //   } catch (error) {
+  //     if (error.statusCode === 500) {
+  //       Logger.error(error?.stack);
+  //     }
+  //     throw error;
+  //   }
+  // } 
+  
+  async signin(dto: ParentSigninDto) {
     const parent = await this.prisma.parent.findFirst({
       where: {
         user: {
@@ -186,6 +192,8 @@ export class ParentAuthService {
     };
   }
 
+
+  
   async connectChildren(parentId: string, dto: ConnectChildrenDto) {
     // First verify the parent exists
     const parent = await this.prisma.parent.findUnique({
@@ -208,6 +216,8 @@ export class ParentAuthService {
 
     return { message: 'Children connected successfully' };
   }
+
+
 
   async disconnectChildren(parentId: string, dto: DisconnectChildrenDto) {
     // First verify the parent exists
@@ -232,6 +242,8 @@ export class ParentAuthService {
 
     return { message: 'Children disconnected successfully' };
   }
+
+
 
   async getChildren(parentId: string) {
     const parent = await this.prisma.parent.findUnique({
@@ -281,4 +293,211 @@ export class ParentAuthService {
       email: user.email
     };
   }
+
+
+async loginWithGoogle(idToken: string) {
+  const decoded = await firebaseAuth.verifyIdToken(idToken);
+  const firebaseUser = await firebaseAuth.getUser(decoded.uid);
+
+  // Find user in your DB by Firebase UID
+  const user = await this.prisma.user.findFirst({
+    where: { firebaseUid: firebaseUser.uid },
+    include: { parent: true }
+  });
+
+  if (!user || user.role !== 'parent' || !user.parent) {
+    throw new UnauthorizedException('Parent not found');
+  }
+
+  const payload = {
+    id: user.parent.id,
+    email: user.email,
+    role: user.role,
+  };
+
+  const token = this.jwtService.sign(payload);
+
+  return {
+    token,
+    parent: {
+      ...user.parent,
+      name: user.name,
+      email: user.email,
+    }
+  };
+}
+
+
+async signupWithGoogle(idToken: string) {
+  return this.loginWithGoogle(idToken);
+}
+
+
+ async loginWithPhone(idToken: string) {
+    try {
+      console.log('📥 Received Firebase ID Token:', idToken);
+
+      // ✅ Verify Firebase Token
+      const decodedToken = await firebaseAuth.verifyIdToken(idToken);
+      const firebaseUser = await firebaseAuth.getUser(decodedToken.uid);
+
+      console.log('🔐 Decoded Firebase User:', firebaseUser);
+
+      // 🔍 Find user by Firebase UID
+      let user = await this.prisma.user.findFirst({
+        where: { firebaseUid: firebaseUser.uid },
+        include: { parent: true },
+      });
+
+      // 🆕 If user doesn't exist, create new one
+      if (!user) {
+        user = await this.prisma.user.create({
+          data: {
+            name: firebaseUser.displayName || 'New Parent',
+            email: firebaseUser.email || null,
+            phoneNumber: firebaseUser.phoneNumber,
+            firebaseUid: firebaseUser.uid,
+            role: RoleEnum.parent,
+            verified: true,
+            parent: {
+              create: { address: '' },
+            },
+          },
+          include: { parent: true },
+        });
+
+        console.log('🆕 New user created:', user);
+      }
+
+      // ❌ User exists but not a parent
+      if (!user.parent || user.role !== RoleEnum.parent) {
+        throw new UnauthorizedException('Parent not found or invalid role');
+      }
+
+      // ✅ Create JWT Token
+      const payload = {
+        id: user.parent.id,
+        email: user.email,
+        role: user.role,
+      };
+
+      const token = this.jwtService.sign(payload);
+
+      // ✅ Return response
+      return {
+        token,
+        parent: {
+          ...user.parent,
+          name: user.name,
+          email: user.email,
+        },
+      };
+    } catch (err) {
+      console.error('❌ loginWithPhone Error:', err);
+    //  throw new InternalServerErrorException('Login with phone failed.');
+    }
+  }
+async updateParentProfile(parentId: string, dto: UpdateProfileDto) {
+  const updatedParent = await this.prisma.parent.update({
+    where: { id: parentId },
+    data: {
+      address: dto.address,
+      user: {
+        update: {
+          name: dto.name,
+          email: dto.email,
+          phoneNumber: dto.phoneNumber,
+        },
+      },
+    },
+    include: { user: true },
+  });
+
+  return {
+    updatedUser: {
+      id: updatedParent.user.id,
+      name: updatedParent.user.name,
+      email: updatedParent.user.email,
+      phoneNumber: updatedParent.user.phoneNumber,
+      address: updatedParent.address,
+    },
+  };
+}
+async verifyGoogleIdToken(idToken: string) {
+  try {
+    // 1. Verify token using Firebase Admin SDK
+    const decoded = await firebaseAuth.verifyIdToken(idToken);
+    const firebaseUser = await firebaseAuth.getUser(decoded.uid);
+
+    // 2. Check if the user exists in DB
+    const user = await this.prisma.user.findFirst({
+      where: { firebaseUid: firebaseUser.uid },
+      include: { parent: true },
+    });
+
+    if (!user || !user.parent || user.role !== RoleEnum.parent) {
+      throw new UnauthorizedException('Parent user not found or role mismatch.');
+    }
+
+    // 3. Generate JWT
+    const payload = {
+      id: user.parent.id,
+      email: user.email,
+      role: user.role,
+    };
+
+    const token = this.jwtService.sign(payload);
+
+    // 4. Return parent info
+    return {
+      token,
+      parent: {
+        ...user.parent,
+        name: user.name,
+        email: user.email,
+      },
+    };
+  } catch (err) {
+    console.error('❌ Error verifying Google ID token:', err);
+    throw new UnauthorizedException('Invalid or expired Google ID token');
+  }
+}
+async findOrCreateParentUserFromGoogle(profile: {
+  id: string;
+  email: string;
+  name: string;
+  picture?: string;
+}) {
+  const user = await this.prisma.user.findFirst({
+    where: {
+      email: profile.email,
+      firebaseUid: profile.id, // assuming profile.id is Google UID
+      role: RoleEnum.parent,
+    },
+    include: {
+      parent: true,
+    },
+  });
+
+  if (user?.parent) return user.parent;
+
+  const newUser = await this.prisma.user.create({
+    data: {
+      name: profile.name,
+      email: profile.email,
+      firebaseUid: profile.id,
+      role: RoleEnum.parent,
+      verified: true,
+      parent: {
+        create: {},
+      },
+    },
+    include: {
+      parent: true,
+    },
+  });
+
+  return newUser.parent;
+}
+
 }

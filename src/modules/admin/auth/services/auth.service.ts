@@ -162,7 +162,139 @@ export class AdminAuthService {
       },
     };
   }
-  
+
+  async getPendingCourses(limit: number, pageNumber: number) {
+    try {
+      const skip = (pageNumber - 1) * limit;
+      
+      const [pendingCourses, total] = await Promise.all([
+        this.prisma.course.findMany({
+          where: { approvalStatus: AdminApprovalEnum.pending },
+          include: {
+            category: true,
+            department: true,
+            subject: true,
+            language: true,
+            InstructorAssignedToCourse: {
+              include: {
+                instructor: {
+                  include: {
+                    user: true,
+                  },
+                },
+              },
+            },
+          },
+          take: limit,
+          skip: skip,
+          orderBy: {
+            created_at: 'desc',
+          },
+        }),
+        this.prisma.course.count({
+          where: { approvalStatus: AdminApprovalEnum.pending },
+        })
+      ]);
+
+      return {
+        data: pendingCourses,
+        meta: {
+          total,
+          pageNumber,
+          limit,
+          totalPages: Math.ceil(total / limit)
+        }
+      };
+    } catch (error) {
+      Logger.error(`Get pending courses error: ${error.message}`);
+      throw error;
+    }
+  }
+
+  async getApprovedCourses(limit: number, pageNumber: number) {
+    try {
+      const skip = (pageNumber - 1) * limit;
+      
+      const [approvedCourses, total] = await Promise.all([
+        this.prisma.course.findMany({
+          where: { approvalStatus: AdminApprovalEnum.approved },
+          include: {
+            category: true,
+            department: true,
+            subject: true,
+            language: true,
+            InstructorAssignedToCourse: {
+              include: {
+                instructor: {
+                  include: {
+                    user: true,
+                  },
+                },
+              },
+            },
+          },
+          take: limit,
+          skip: skip,
+          orderBy: {
+            created_at: 'desc',
+          },
+        }),
+        this.prisma.course.count({
+          where: { approvalStatus: AdminApprovalEnum.approved },
+        })
+      ]);
+
+      return {
+        data: approvedCourses,
+        meta: {
+          total,
+          pageNumber,
+          limit,
+          totalPages: Math.ceil(total / limit)
+        }
+      };
+    } catch (error) {
+      Logger.error(`Get approved courses error: ${error.message}`);
+      throw error;
+    }
+  }
+
+  async approveCourse(courseId: string, approvalStatus: AdminApprovalEnum) {
+    try {
+      const course = await this.prisma.course.findUnique({
+        where: { id: courseId },
+      });
+
+      if (!course) {
+        throw new NotFoundException('Course not found');
+      }
+
+      const updatedCourse = await this.prisma.course.update({
+        where: { id: courseId },
+        data: { approvalStatus },
+        include: {
+          category: true,
+          department: true,
+          subject: true,
+          language: true,
+          InstructorAssignedToCourse: {
+            include: {
+              instructor: {
+                include: {
+                  user: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      return updatedCourse;
+    } catch (error) {
+      Logger.error(`Course approval error: ${error.message}`);
+      throw error;
+    }
+  }
   
 }
 

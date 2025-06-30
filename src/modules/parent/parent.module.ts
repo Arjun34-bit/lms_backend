@@ -7,7 +7,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { TestResultsModule } from './test-results/test-results.module';
 import { auth } from 'firebase-admin';
 import { ParentAuthModule } from './auth/auth.module';
-
+import { GoogleModule } from 'src/modules/common/services/google/google.module';
 @Module({
     imports: [
         PrismaModule,
@@ -15,7 +15,8 @@ import { ParentAuthModule } from './auth/auth.module';
         AttendanceModule,
         NotificationsModule,
         TestResultsModule,
-        ParentAuthModule
+        ParentAuthModule,
+   
     ],
 })
 export class ParentModule { }
