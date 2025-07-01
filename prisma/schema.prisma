@@ -363,7 +363,7 @@ model CourseBuy {
   courseEnrollmentId String?                @unique @db.ObjectId
   amount             Float
   status             PaymentStatusEnum      @default(PENDING)
-  razorpayPaymentId  String?                @unique
+  razorpayPaymentId  String?                
   razorpayOrderId    String                 @unique
   created_at         DateTime               @default(now())
   updated_at         DateTime               @updatedAt
