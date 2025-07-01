@@ -82,9 +82,9 @@ export class MediasoupGateway {
     try {
       console.log(`Socket ${socket.id} joining room: ${roomId}`);
       if (role === 'student') {
-        let room = await this.mediasoupService.getRoom(roomId,role,socket);
+        let room = await this.mediasoupService.getRoom(roomId, role, socket);
       }
-      let room = await this.mediasoupService.getRoom(roomId,role,socket);
+      let room = await this.mediasoupService.getRoom(roomId, role, socket);
       if (!room) {
         room = await this.mediasoupService.createRoom(roomId);
       }
@@ -101,7 +101,7 @@ export class MediasoupGateway {
       return { joined: true, rtpCapabilities: room.router.rtpCapabilities };
     } catch (error) {
       // console.log(error);
-      return { params: { error: error.message } }
+      return { params: { error: error.message } };
       // throw new Error('Failed to Join Room or Create Room', error);
     }
   }
@@ -183,13 +183,18 @@ export class MediasoupGateway {
     console.log(
       `Connecting consumer transport for socket ${socket.id} and room : ${roomId}`,
     );
-    await this.mediasoupService.connectTransport(
-      roomId,
-      socket.id,
-      false,
-      dtlsParameters,
-    );
-    return { success: true };
+    try {
+      await this.mediasoupService.connectTransport(
+        roomId,
+        socket.id,
+        false,
+        dtlsParameters,
+      );
+      return { success: true };
+    } catch (err) {
+      console.error('Error connecting consumer transport:', err);
+      return { success: false, error: err.message };
+    }
   }
 
   @SubscribeMessage('transport-produce')
@@ -217,7 +222,7 @@ export class MediasoupGateway {
       kind,
       rtpParameters,
       label,
-      socket
+      socket,
     );
     return { id: producerId };
   }

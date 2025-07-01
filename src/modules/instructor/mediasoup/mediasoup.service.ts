@@ -268,7 +268,13 @@ export class MediasoupService {
     const transport = sender
       ? peer?.transports.producer
       : peer?.transports.consumer;
-    if (!transport) throw new Error('Transport not found');
+    if (!transport) throw new Error('Transports not found');
+    if (transport.connectionState === 'connected') {
+      console.warn(
+        `Transport for ${peerId} in room ${roomId} is already connected`,
+      );
+      return { success: true };
+    }
     await transport.connect({ dtlsParameters });
 
     if (sender) {
@@ -288,8 +294,9 @@ export class MediasoupService {
     kind: mediasoup.types.MediaKind,
     rtpParameters: mediasoup.types.RtpParameters,
     label: string = '',
-    socket: Socket
+    socket: Socket,
   ) {
+    const room = this.rooms.get(roomId);
     const peer = this.rooms.get(roomId)?.peers.get(peerId);
     const transport = peer?.transports.producer;
     if (!transport) throw new Error('Producer transport not found');
@@ -299,23 +306,24 @@ export class MediasoupService {
 
     console.log('Producers Id', producer?.id);
 
-    for (const [otherId, otherPeer] of this.rooms.get(roomId).peers.entries()) {
-      if (otherId !== peerId) {
-        if (otherPeer.announcedProducers?.has(producer.id)) continue;
+    for (const [otherPeerId, otherPeer] of room.peers.entries()) {
+      if (otherPeerId === peerId) continue;
 
-        console.log('new-producer-emitiing', peerId);
-        console.log('new-producer-emitiing', socket?.id);
-        socket.to(roomId).emit('new-producer', {
-          roomId,
-          producerId: producer.id,
-          peerId:socket.id,
-          kind,
-          label,
-        });
-      }
+      if (otherPeer.announcedProducers.has(producer.id)) continue;
 
-      otherPeer.announcedProducers ??= new Set();
+      otherPeer.socket.emit('new-producer', {
+        roomId,
+        producerId: producer.id,
+        peerId: peerId,
+        kind,
+        label,
+      });
+
       otherPeer.announcedProducers.add(producer.id);
+
+      console.log(
+        `[produce] Emitted new-producer to ${otherPeerId} for producer ${producer.id}`,
+      );
     }
 
     producer.on('transportclose', () => {

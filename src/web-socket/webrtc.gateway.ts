@@ -13,14 +13,16 @@ import { EmailService } from '@modules/common/email/email.service';
 const redis = new Redis({
   host: envConstant.REDIS_HOST,
   port: envConstant.REDIS_PORT,
-  db: envConstant.REDIS_DB
+  db: envConstant.REDIS_DB,
 });
 
-@WebSocketGateway({ namespace: '/webRTC',cors: true })
+@WebSocketGateway({ namespace: '/', cors: true })
 export class WebrtcGateway implements OnGatewayInit {
   @WebSocketServer() server: Server;
-constructor(private prisma: PrismaService,private studentEmailService: EmailService) {
-  }
+  constructor(
+    private prisma: PrismaService,
+    private studentEmailService: EmailService,
+  ) {}
   afterInit(server: Server) {
     console.log('WebRTC Signaling Server Initialized');
   }
@@ -28,37 +30,36 @@ constructor(private prisma: PrismaService,private studentEmailService: EmailServ
   @SubscribeMessage('joinInstructor')
   async handleJoinInstructor(
     client: Socket,
-    payload: { classId: string; role: string, courseId: string },
+    payload: { classId: string; role: string; courseId: string },
   ) {
-    const { classId, role,courseId='' } = payload;
-    if(!courseId){
-  this.server.to(client.id).emit('joinInstructorError', {
-    message: `Course ID is required`,
-    classId,
-  } );
-  return;
+    const { classId, role, courseId = '' } = payload;
+    if (!courseId) {
+      this.server.to(client.id).emit('joinInstructorError', {
+        message: `Course ID is required`,
+        classId,
+      });
+      return;
     }
     if (role === 'instructor') {
       await redis.set(`instructor:${classId}`, client.id);
       client.join(classId);
       console.log(`Instructor joined class: ${classId}`);
       //get all  student in courseId
-      const students =await this.prisma.studentCourseEnrolled.findMany({
-        where:{
-          courseId:courseId,
+      const students = await this.prisma.studentCourseEnrolled.findMany({
+        where: {
+          courseId: courseId,
           courseBuy: {
-         status: 'COMPLETED',   
-          }
-        }, 
-        include:{
-          student:{
-            include:{
-           user:true,  
-            }
-          } 
-        } 
-
-      })
+            status: 'COMPLETED',
+          },
+        },
+        include: {
+          student: {
+            include: {
+              user: true,
+            },
+          },
+        },
+      });
       if (!students || students.length === 0) {
         this.server.to(client.id).emit('joinInstructorError', {
           message: `No students found in course ${courseId}`,
@@ -67,7 +68,10 @@ constructor(private prisma: PrismaService,private studentEmailService: EmailServ
         return;
       }
       for (const student of students) {
-       this.studentEmailService.sendLiveClassInvitationEmail(student.student.user?.email,courseId); 
+        this.studentEmailService.sendLiveClassInvitationEmail(
+          student.student.user?.email,
+          courseId,
+        );
       }
       this.server.to(client.id).emit('joinInstructorResponse', {
         message: `You have joined the class ${classId}`,
@@ -108,10 +112,10 @@ constructor(private prisma: PrismaService,private studentEmailService: EmailServ
   @SubscribeMessage('signal')
   async handleSignal(
     client: Socket,
-    payload: { userId: string, signal: string },
+    payload: { userId: string; signal: string },
   ) {
     const { userId, signal } = payload;
-    this.server.to(userId).emit("signal", { userId: client.id, signal });
+    this.server.to(userId).emit('signal', { userId: client.id, signal });
   }
 
   @SubscribeMessage('offer')

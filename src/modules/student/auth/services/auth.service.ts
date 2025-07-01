@@ -223,7 +223,7 @@ export class AuthService {
         name: user.name,
         email: user.email,
         role: RoleEnum.student,
-        studentId: user.student.id,
+        studentId: user?.student?.id,
       };
 
       return {
