@@ -1,6 +1,6 @@
-import { Body, Controller, Post, UseGuards, Get, Param, Query, Res } from '@nestjs/common';
+import { Body, Controller, Post, UseGuards, Get, Param, Query, Res, Put } from '@nestjs/common';
 import { ParentAuthService } from '../services/auth.service';
-import { ConnectChildrenDto, DisconnectChildrenDto, LoginWithPhoneNumberDto, ParentSigninDto, ParentSignupDto } from '../dto/auth.dto';
+import { ConnectChildrenDto, DisconnectChildrenDto, LoginWithPhoneNumberDto, ParentSigninDto, ParentSignupDto, UpdateParentProfileDto } from '../dto/auth.dto';
 import { GetUser } from 'src/common/decorators/user.decorator';
 import { JwtParentAuthGuard } from '../guards/jwt-parent.guard';
 import { envConstant } from '@constants/index';
@@ -9,13 +9,11 @@ import { Response } from 'express';
 import { ApiUtilsService } from '@utils/utils.service';
 
 @Controller('parent/auth')
-export class ParentAuthController {
-    constructor(private readonly authService: ParentAuthService
-   , private readonly apiUtilsSevice: ApiUtilsService,
-    
-    ) {
-
-     }
+ export class ParentAuthController {
+    constructor(
+        private readonly authService: ParentAuthService,
+        private readonly apiUtilsSevice: ApiUtilsService,
+    ) {}
 
     @Post('signup')
     async signup(@Body() dto: ParentSignupDto) {
@@ -61,5 +59,22 @@ export class ParentAuthController {
     async verifyEmail(@Query() queryDto: VerifyEmailDto, @Res() res: Response) {
       const data = await this.authService.verifyEmail(queryDto.token);
       return res.redirect(`${envConstant.CLIENT_BASE_URL}/parent/verified?message=${data.message}`)
+    }
+
+    @UseGuards(JwtParentAuthGuard)
+    @Get('profile')
+    async getProfile(@GetUser() user: any) {
+        const data = await this.authService.getProfile(user);
+        return this.apiUtilsSevice.make_response(data);
+    }
+
+    @UseGuards(JwtParentAuthGuard)
+    @Put('profile')
+    async updateProfile(
+        @GetUser() user: any,
+        @Body() dto: UpdateParentProfileDto
+    ) {
+        const data = await this.authService.updateProfile(user, dto);
+        return this.apiUtilsSevice.make_response(data);
     }
 }

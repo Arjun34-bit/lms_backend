@@ -1,7 +1,7 @@
 import { Injectable, UnauthorizedException, BadRequestException, Logger, Inject } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
-import { ParentSignupDto, ParentSigninDto, ConnectChildrenDto, DisconnectChildrenDto } from '../dto/auth.dto';
+import { ParentSignupDto, ParentSigninDto, ConnectChildrenDto, DisconnectChildrenDto, UpdateParentProfileDto } from '../dto/auth.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { RoleEnum } from '@prisma/client';
@@ -282,5 +282,125 @@ export class ParentAuthService {
       name: user.name,
       email: user.email
     };
+  }
+
+  async updateProfile(user: any, dto: UpdateParentProfileDto) {
+    try {
+      const updateData: any = {};
+      const parentUpdateData: any = {};
+  
+      // If new password is provided, validate current password
+      if (dto.newPassword?.trim()) {
+        if (!dto.currentPassword?.trim()) {
+          throw new BadRequestException('Current password is required to set new password');
+        }
+  
+        const currentUser = await this.prisma.user.findUnique({
+          where: { id: user.userId },
+        });
+  
+        const isPasswordValid = await bcrypt.compare(dto.currentPassword, currentUser.password);
+        if (!isPasswordValid) {
+          throw new BadRequestException('Current password is incorrect');
+        }
+  
+        updateData.password = await bcrypt.hash(dto.newPassword, 10);
+      }
+  
+      // Update name if provided
+      if (dto.name?.trim()) {
+        updateData.name = dto.name.trim();
+      }
+  
+      // Update address if provided
+      if (dto.address?.trim()) {
+        parentUpdateData.address = dto.address.trim();
+      }
+  
+      const updatedUser = await this.prisma.user.update({
+        where: { id: user.userId },
+        data: {
+          ...updateData,
+          parent: {
+            update: parentUpdateData,
+          },
+        },
+        include: {
+          parent: true,
+        },
+      });
+  
+      return {
+        message: 'Profile updated successfully',
+        user: {
+          id: updatedUser.id,
+          name: updatedUser.name,
+          email: updatedUser.email,
+          role: updatedUser.role,
+          address: updatedUser.parent?.address || null,
+        },
+      };
+    } catch (error) {
+      if (error.code === 'P2002') {
+        throw new BadRequestException('Email already exists');
+      }
+      throw error;
+    }
+  }
+  
+  async getProfile(user: any) {
+    try {
+      const userProfile = await this.prisma.user.findUnique({
+        where: {
+          id: user.userId,
+          role: RoleEnum.parent,
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phoneNumber: true,
+          firebaseUid: true,
+          role: true,
+          verified: true,
+          parent: {
+            select: {
+              id: true,
+              address: true,
+              students: {
+                select: {
+                  id: true,
+                  user: {
+                    select: {
+                      name: true,
+                      email: true
+                    }
+                  },
+                  studentCourseEnrolled: {
+                    select: {
+                      course: {
+                        select: {
+                          id: true,
+                          title: true,
+                          description: true
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      });
+
+      if (!userProfile) {
+        throw new UnauthorizedException('Parent profile not found');
+      }
+
+      return userProfile;
+    } catch (error) {
+      throw error;
+    }
   }
 }
