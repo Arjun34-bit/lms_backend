@@ -8,18 +8,25 @@ import { RoleEnum } from '@prisma/client';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import { firebaseAuth } from 'src/config/firebase.config';
+import { OAuth2Client } from 'google-auth-library';
 
 
 
 @Injectable()
 export class ParentAuthService {
+  private googleClient: OAuth2Client;
+
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
     private eventEmitter: EventEmitter2,
     @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
-
-  ) { }
+  ) {
+    this.googleClient = new OAuth2Client(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET
+    );
+  }
   async signup(dto: ParentSignupDto) {
     const existingParent = await this.prisma.user.findUnique({
       where: {
@@ -105,7 +112,9 @@ export class ParentAuthService {
       }
       throw error;
     }
-  }  async loginWithPhoneNumber(idToken: string) {
+  } 
+  
+  async loginWithPhoneNumber(idToken: string) {
     try {
       const decodedToken = await firebaseAuth.verifyIdToken(idToken);
       const firebaseUser = await firebaseAuth.getUser(decodedToken.uid);
@@ -159,7 +168,74 @@ export class ParentAuthService {
       }
       throw error;
     }
-  }  async signin(dto: ParentSigninDto) {
+  } 
+  
+  async googleLogin(token: string) {
+    try {
+      const ticket = await this.googleClient.verifyIdToken({
+        idToken: token,
+        audience: process.env.GOOGLE_CLIENT_ID
+      });
+
+      const payload = ticket.getPayload();
+      const email = payload.email;
+
+      let user = await this.prisma.user.findFirst({
+        where: {
+          email: email,
+          role: RoleEnum.parent
+        },
+        include: {
+          parent: true
+        }
+      });
+
+      if (!user) {
+        user = await this.prisma.user.create({
+          data: {
+            email: email,
+            name: payload.name,
+            role: RoleEnum.parent,
+            verified: true, // Google accounts are pre-verified
+            googleId: payload.sub,
+            parent: {
+              create: {}
+            }
+          },
+          include: {
+            parent: true
+          }
+        });
+      } else if (!user.googleId) {
+        // Update existing user with Google ID if not set
+        user = await this.prisma.user.update({
+          where: { id: user.id },
+          data: { googleId: payload.sub },
+          include: { parent: true }
+        });
+      }
+
+      const tokenPayload = {
+        userId: user.id,
+        name: user.name,
+        email: user.email,
+        role: RoleEnum.parent,
+        parentId: user.parent.id
+      };
+
+      return {
+        access_token: this.jwtService.sign(tokenPayload),
+        user: tokenPayload
+      };
+    } catch (error) {
+      if (error.statusCode === 500) {
+        Logger.error(error?.stack);
+      }
+      throw new UnauthorizedException('Invalid Google token');
+    }
+  }
+
+  async signin(dto: ParentSigninDto) {
     const parent = await this.prisma.parent.findFirst({
       where: {
         user: {
@@ -402,5 +478,5 @@ export class ParentAuthService {
     } catch (error) {
       throw error;
     }
-  }
+  } 
 }

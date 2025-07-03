@@ -46,6 +46,12 @@ export class LoginWithPhoneNumberDto {
     idToken: string;
 }
 
+export class GoogleLoginDto {
+    @IsNotEmpty()
+    @IsString()
+    token: string;
+}
+
 export class UpdateParentProfileDto {
     @IsOptional()
     @IsString()

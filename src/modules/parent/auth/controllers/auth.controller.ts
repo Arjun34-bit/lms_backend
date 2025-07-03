@@ -1,6 +1,6 @@
 import { Body, Controller, Post, UseGuards, Get, Param, Query, Res, Put } from '@nestjs/common';
 import { ParentAuthService } from '../services/auth.service';
-import { ConnectChildrenDto, DisconnectChildrenDto, LoginWithPhoneNumberDto, ParentSigninDto, ParentSignupDto, UpdateParentProfileDto } from '../dto/auth.dto';
+import { ConnectChildrenDto, DisconnectChildrenDto, LoginWithPhoneNumberDto, ParentSigninDto, ParentSignupDto, UpdateParentProfileDto, GoogleLoginDto } from '../dto/auth.dto';
 import { GetUser } from 'src/common/decorators/user.decorator';
 import { JwtParentAuthGuard } from '../guards/jwt-parent.guard';
 import { envConstant } from '@constants/index';
@@ -23,6 +23,12 @@ import { ApiUtilsService } from '@utils/utils.service';
     @Post('signin')
     async signin(@Body() dto: ParentSigninDto) {
         return this.authService.signin(dto);
+    }
+
+    @Post('google-login')
+    async googleLogin(@Body() dto: GoogleLoginDto) {
+        const data = await this.authService.googleLogin(dto.token);
+        return this.apiUtilsSevice.make_response(data);
     }
     @Post('login-with-phone-number')
     async loginWithPhoneNumber(@Body() body: LoginWithPhoneNumberDto) {
