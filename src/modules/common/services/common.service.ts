@@ -146,6 +146,83 @@ export class CommonService {
     }
   }
 
+  async getCoursesDetails(filterDto: CourseFilterDto, courseId: string) {
+    try {
+      const course = await this.prisma.course.findFirst({
+        where: {
+          id: courseId,
+          approvalStatus: AdminApprovalEnum.approved,
+          categoryId: filterDto.categoryId,
+          departmentId: filterDto.departmentId,
+          languageId: filterDto.languageId,
+          subjectId: filterDto.subjectId,
+        },
+        include: {
+          category: true,
+          department: true,
+          language: true,
+          subject: true,
+        },
+      });
+
+      return {
+        course,
+      };
+    } catch (error) {
+      if (error.statusCode === 500) {
+        Logger.error(error?.stack);
+      }
+      throw error;
+    }
+  }
+
+  async getCourseByCategory(queryDto: PaginationDto, categoryId: string) {
+    try {
+      if (!queryDto.limit) {
+        queryDto.limit = 10;
+      }
+      if (!queryDto.pageNumber) {
+        queryDto.pageNumber = 1;
+      }
+
+      const courses = this.prisma.course.findMany({
+        where: {
+          categoryId: categoryId,
+          approvalStatus: AdminApprovalEnum.approved,
+        },
+        include: {
+          department: true,
+          subject: true,
+          language: true,
+          category: true,
+        },
+        orderBy: {
+          created_at: 'desc',
+        },
+        skip: Number(queryDto.limit) * (Number(queryDto.pageNumber) - 1),
+        take: Number(queryDto.limit),
+      });
+
+      const totalCount = await this.prisma.course.count({
+        where: {
+          categoryId: categoryId,
+          approvalStatus: AdminApprovalEnum.approved,
+        },
+      });
+
+      return {
+        courses,
+        totalCount,
+        limit: queryDto.limit,
+      };
+    } catch (error) {
+      if (error.statusCode === 500) {
+        Logger.error(error?.stack);
+      }
+      throw error;
+    }
+  }
+
   async getRoleAndUserDataByUserId(userId: string) {
     try {
       const user = await this.prisma.user.findUnique({
@@ -224,19 +301,19 @@ export class CommonService {
     try {
       const fileData = await this.prisma.files.findUnique({
         where: {
-          id: dto.fileId
-        }
+          id: dto.fileId,
+        },
       });
-  
+
       if (!fileData) {
         throw new BadRequestException('File not found');
       }
-  
+
       const stream = await this.minioService.getFileStream(
         fileData.bucketName,
         fileData.objectKey,
       );
-  
+
       return stream;
     } catch (error) {
       if (error.statusCode === 500) {

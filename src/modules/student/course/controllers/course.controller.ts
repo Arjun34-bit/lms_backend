@@ -42,16 +42,39 @@ export class CourseController {
     );
   }
 
+  @Public()
+  @Get('course-detail')
+  async getCourseDetail(
+    @Query() filterDto: CourseFilterDto,
+    @Query('courseId') courseId: string,
+  ): Promise<ApiResponseT> {
+    const data = await this.commonService.getCoursesDetails(
+      filterDto,
+      courseId,
+    );
+    return this.apiUtilsSevice.make_response(data);
+  }
+
+  @Get('by-category')
+  async getCourseByCategory(
+    @Query() queryDto: PaginationDto,
+    @Query() filterDto: CourseFilterDto,
+    @Query('categoryId') categoryId: string,
+  ): Promise<ApiResponseT> {
+    const data = await this.commonService.getCourseByCategory(
+      queryDto,
+      categoryId,
+    );
+    return this.apiUtilsSevice.make_response(data);
+  }
+
   @Post('buy-course')
   async buyCourse(
     @Body() dto: BuyCourseDto,
     @GetUser() user: StudentJwtDto,
   ): Promise<ApiResponseT> {
     console.log(dto);
-    const data = await this.courseService.buyCourse(
-      user?.studentId,
-      dto.courseId,
-    );
+    const data = await this.courseService.buyCourse(user?.userId, dto.courseId);
 
     return this.apiUtilsSevice.make_response(data);
   }

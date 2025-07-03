@@ -269,23 +269,21 @@ export class MediasoupService {
       ? peer?.transports.producer
       : peer?.transports.consumer;
     if (!transport) throw new Error('Transports not found');
-    if (transport.connectionState === 'connected') {
-      console.warn(
-        `Transport for ${peerId} in room ${roomId} is already connected`,
-      );
-      return { success: true };
+    console.log("Transport Variables",transport)
+    if (transport.dtlsState === 'connected') {
+      console.warn(`Transport already connected for ${peerId} in room ${roomId}`);
+      return;
     }
-    await transport.connect({ dtlsParameters });
-
-    if (sender) {
-      console.log(
-        `Producer transport connected for room : ${roomId} and peer ${peerId}`,
-      );
-    } else {
-      console.log(
-        `Consumer transport connected for room : ${roomId} and peer ${peerId}`,
-      );
+    try {
+      await transport.connect({ dtlsParameters });
+    } catch (err) {
+      console.error(`Error connecting transport: ${err.message}`);
+      throw err;
     }
+  
+    console.log(
+      `${sender ? 'Producer' : 'Consumer'} transport connected for ${peerId} in room ${roomId}`,
+    );
   }
 
   async produce(
