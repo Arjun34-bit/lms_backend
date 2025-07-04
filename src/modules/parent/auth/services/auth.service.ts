@@ -1,7 +1,7 @@
 import { Injectable, UnauthorizedException, BadRequestException, Logger, Inject } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
-import { ParentSignupDto, ParentSigninDto, ConnectChildrenDto, DisconnectChildrenDto } from '../dto/auth.dto';
+import { ParentSignupDto, ParentSigninDto, ConnectChildrenDto, DisconnectChildrenDto, UpdateParentProfileDto } from '../dto/auth.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { RoleEnum } from '@prisma/client';
@@ -9,18 +9,25 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import { firebaseAuth } from 'src/config/firebase.config';
 import { UpdateProfileDto } from '../dto/auth.dto'; // Adjust path as needed
+import { OAuth2Client } from 'google-auth-library';
 
 
 
 @Injectable()
 export class ParentAuthService {
+  private googleClient: OAuth2Client;
+
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
     private eventEmitter: EventEmitter2,
     @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
-
-  ) { }
+  ) {
+    this.googleClient = new OAuth2Client(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET
+    );
+  }
   async signup(dto: ParentSignupDto) {
     const existingParent = await this.prisma.user.findUnique({
       where: {
@@ -108,6 +115,12 @@ export class ParentAuthService {
     }
   }
   
+  } 
+  
+  async loginWithPhoneNumber(idToken: string) {
+    try {
+      const decodedToken = await firebaseAuth.verifyIdToken(idToken);
+      const firebaseUser = await firebaseAuth.getUser(decodedToken.uid);
 
   //   try {
   //     const decodedToken = await firebaseAuth.verifyIdToken(idToken);
@@ -164,6 +177,83 @@ export class ParentAuthService {
   //   }
   // } 
   
+      return {
+        access_token: this.jwtService.sign(payload),
+        user: payload,
+      };
+    } catch (error) {
+      if (error.statusCode === 500) {
+        Logger.error(error?.stack);
+      }
+      throw error;
+    }
+  } 
+  
+  async googleLogin(token: string) {
+    try {
+      const ticket = await this.googleClient.verifyIdToken({
+        idToken: token,
+        audience: process.env.GOOGLE_CLIENT_ID
+      });
+
+      const payload = ticket.getPayload();
+      const email = payload.email;
+
+      let user = await this.prisma.user.findFirst({
+        where: {
+          email: email,
+          role: RoleEnum.parent
+        },
+        include: {
+          parent: true
+        }
+      });
+
+      if (!user) {
+        user = await this.prisma.user.create({
+          data: {
+            email: email,
+            name: payload.name,
+            role: RoleEnum.parent,
+            verified: true, // Google accounts are pre-verified
+            googleId: payload.sub,
+            parent: {
+              create: {}
+            }
+          },
+          include: {
+            parent: true
+          }
+        });
+      } else if (!user.googleId) {
+        // Update existing user with Google ID if not set
+        user = await this.prisma.user.update({
+          where: { id: user.id },
+          data: { googleId: payload.sub },
+          include: { parent: true }
+        });
+      }
+
+      const tokenPayload = {
+        userId: user.id,
+        name: user.name,
+        email: user.email,
+        role: RoleEnum.parent,
+        parentId: user.parent.id
+      };
+
+      return {
+        access_token: this.jwtService.sign(tokenPayload),
+        user: tokenPayload
+      };
+    } catch (error) {
+      if (error.statusCode === 500) {
+        Logger.error(error?.stack);
+      }
+      throw new UnauthorizedException('Invalid Google token');
+    }
+  }
+
   async signin(dto: ParentSigninDto) {
     const parent = await this.prisma.parent.findFirst({
       where: {
@@ -540,4 +630,123 @@ async findOrCreateParentUserFromGoogle(profile: {
   return parent;
 }
 
+  async updateProfile(user: any, dto: UpdateParentProfileDto) {
+    try {
+      const updateData: any = {};
+      const parentUpdateData: any = {};
+  
+      // If new password is provided, validate current password
+      if (dto.newPassword?.trim()) {
+        if (!dto.currentPassword?.trim()) {
+          throw new BadRequestException('Current password is required to set new password');
+        }
+  
+        const currentUser = await this.prisma.user.findUnique({
+          where: { id: user.userId },
+        });
+  
+        const isPasswordValid = await bcrypt.compare(dto.currentPassword, currentUser.password);
+        if (!isPasswordValid) {
+          throw new BadRequestException('Current password is incorrect');
+        }
+  
+        updateData.password = await bcrypt.hash(dto.newPassword, 10);
+      }
+  
+      // Update name if provided
+      if (dto.name?.trim()) {
+        updateData.name = dto.name.trim();
+      }
+  
+      // Update address if provided
+      if (dto.address?.trim()) {
+        parentUpdateData.address = dto.address.trim();
+      }
+  
+      const updatedUser = await this.prisma.user.update({
+        where: { id: user.userId },
+        data: {
+          ...updateData,
+          parent: {
+            update: parentUpdateData,
+          },
+        },
+        include: {
+          parent: true,
+        },
+      });
+  
+      return {
+        message: 'Profile updated successfully',
+        user: {
+          id: updatedUser.id,
+          name: updatedUser.name,
+          email: updatedUser.email,
+          role: updatedUser.role,
+          address: updatedUser.parent?.address || null,
+        },
+      };
+    } catch (error) {
+      if (error.code === 'P2002') {
+        throw new BadRequestException('Email already exists');
+      }
+      throw error;
+    }
+  }
+  
+  async getProfile(user: any) {
+    try {
+      const userProfile = await this.prisma.user.findUnique({
+        where: {
+          id: user.userId,
+          role: RoleEnum.parent,
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phoneNumber: true,
+          firebaseUid: true,
+          role: true,
+          verified: true,
+          parent: {
+            select: {
+              id: true,
+              address: true,
+              students: {
+                select: {
+                  id: true,
+                  user: {
+                    select: {
+                      name: true,
+                      email: true
+                    }
+                  },
+                  studentCourseEnrolled: {
+                    select: {
+                      course: {
+                        select: {
+                          id: true,
+                          title: true,
+                          description: true
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      });
+
+      if (!userProfile) {
+        throw new UnauthorizedException('Parent profile not found');
+      }
+
+      return userProfile;
+    } catch (error) {
+      throw error;
+    }
+  } 
 }
