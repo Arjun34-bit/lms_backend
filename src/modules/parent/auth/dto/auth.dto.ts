@@ -1,6 +1,6 @@
 import { IsEmail, IsNotEmpty, IsString, MinLength, IsArray } from 'class-validator';
 import { IsOptional } from 'class-validator';
-import { IsEmail, IsNotEmpty, IsString, MinLength, IsArray, IsOptional } from 'class-validator';
+
 
 export class ParentSignupDto {
     @IsNotEmpty()
@@ -94,8 +94,6 @@ export class LoginWithGoogleDtoapp {
 
 
 
-
-}
 
 export class GoogleLoginDto {
     @IsNotEmpty()

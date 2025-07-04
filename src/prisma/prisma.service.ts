@@ -8,6 +8,20 @@ export class PrismaService
   implements OnModuleInit, OnModuleDestroy
 {
   private readonly logger = new Logger(PrismaService.name);
+  private _user: any;
+  public get user(): any {
+    return this._user;
+  }
+  public set user(value: any) {
+    this._user = value;
+  }
+  private _parent: any;
+  public get parent(): any {
+    return this._parent;
+  }
+  public set parent(value: any) {
+    this._parent = value;
+  }
 
   async onModuleInit() {
     await this.$connect();
