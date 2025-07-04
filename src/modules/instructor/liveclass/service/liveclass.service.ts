@@ -35,7 +35,7 @@ export class LiveClassService {
               instructorId: user?.instructorId,
             },
           },
-          approvalStatus: AdminApprovalEnum.approved
+          approvalStatus: AdminApprovalEnum.approved,
         },
         select: {
           id: true,
@@ -45,7 +45,7 @@ export class LiveClassService {
 
       if (!isInstructorPartOfCourse) {
         throw new ForbiddenException(
-          `Instructor is not assigned to ${isInstructorPartOfCourse.title}`,
+          `Instructor is not assigned to ${isInstructorPartOfCourse?.title}`,
         );
       }
 
@@ -81,7 +81,7 @@ export class LiveClassService {
       const liveClasses = await this.prisma.liveClass.findMany({
         where: {
           instructorId: user?.instructorId,
-          approvalStatus: AdminApprovalEnum.approved
+          approvalStatus: AdminApprovalEnum.approved,
         },
         include: {
           course: true,
@@ -96,7 +96,7 @@ export class LiveClassService {
       const totalCount = await this.prisma.liveClass.count({
         where: {
           instructorId: user?.instructorId,
-          approvalStatus: AdminApprovalEnum.approved
+          approvalStatus: AdminApprovalEnum.approved,
         },
       });
 
