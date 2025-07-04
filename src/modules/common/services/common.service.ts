@@ -219,7 +219,7 @@ export class CommonService {
         queryDto.pageNumber = 1;
       }
 
-      const courses = this.prisma.course.findMany({
+      const courses = await this.prisma.course.findMany({
         where: {
           categoryId: categoryId,
           approvalStatus: AdminApprovalEnum.approved,

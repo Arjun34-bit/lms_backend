@@ -55,10 +55,10 @@ export class CourseController {
     return this.apiUtilsSevice.make_response(data);
   }
 
+  @Public()
   @Get('by-category')
   async getCourseByCategory(
     @Query() queryDto: PaginationDto,
-    @Query() filterDto: CourseFilterDto,
     @Query('categoryId') categoryId: string,
   ): Promise<ApiResponseT> {
     const data = await this.commonService.getCourseByCategory(
