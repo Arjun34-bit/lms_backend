@@ -19,7 +19,7 @@ export class PrismaService
   }
 
   private async seedAdminUser() {
-    const adminEmail = process.env.ADMIN_EMAIL || 'admin@pcc.com';
+    const adminEmail = process.env.ADMIN_EMAIL || 'admin@pcc.duoples.com';
     const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
 
     const existingAdmin = await this.user.findFirst({

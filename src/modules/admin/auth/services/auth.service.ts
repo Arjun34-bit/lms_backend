@@ -12,10 +12,6 @@ import * as bcrypt from 'bcryptjs';
 // List of authorized admin phone numbers
 const AUTHORIZED_ADMIN_PHONES = envConstant.AUTHORIZED_ADMIN_PHONES?.split(',') || [];
 
-// In a real application, these would be stored securely, e.g., in environment variables or a config service
-const ADMIN_EMAIL = envConstant.ADMIN_EMAIL || 'rehanchanija+12@gmail.com';
-const ADMIN_PASSWORD = envConstant.ADMIN_PASSWORD || "admin@123"; // Store hashed password
-
 @Injectable()
 export class AdminAuthService {
   constructor(
