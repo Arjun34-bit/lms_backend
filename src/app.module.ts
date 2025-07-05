@@ -22,6 +22,7 @@ import { ParentModule } from '@modules/parent/parent.module';
 import { AdminModule } from '@modules/admin/admin.module';
 import { PaymentService } from './payment/payment.service';
 import { SupportModule } from '@modules/support/support.module';
+import { SeedModule } from './seed/seed.module';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { SupportModule } from '@modules/support/support.module';
     WebSocketModule,
     ParentModule,
     AdminModule,
+    SeedModule,
   ],
   // controllers: [AppController],
   providers: [

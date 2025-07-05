@@ -17,7 +17,8 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "seed:admin": "ts-node -r tsconfig-paths/register src/seed.ts seed:admin"
   },
   "dependencies": {
     "@nestjs/bull": "^11.0.1",
@@ -46,7 +47,9 @@
     "mediasoup": "^3.15.7",
     "minio": "^8.0.4",
     "multer": "^1.4.5-lts.1",
+    "nest-commander": "^3.17.0",
     "nest-postman": "^0.1.0",
+    "nestjs-command": "^3.1.5",
     "nodemailer": "^6.10.0",
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
