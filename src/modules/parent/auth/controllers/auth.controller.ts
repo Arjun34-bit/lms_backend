@@ -273,23 +273,15 @@ import { envConstant } from '@constants/index';
 import { VerifyEmailDto } from '../dto/verifyemail.dto';
 import { Response } from 'express';
 import { ApiUtilsService } from '@utils/utils.service';
-import { BadRequestException } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
-import { Put ,Patch } from '@nestjs/common';
-import { UpdateProfileDto } from '../dto/auth.dto'; // adjust path to where it's defined
 import { GoogleService } from '@modules/common/services/google/google.service';
-import { JwtService } from '@nestjs/jwt';
-import { UpdateParentProfileDto } from '../dto/auth.dto'; // adjust path to where it's defined
-import { OAuth2Client } from 'google-auth-library';
 @Controller('parent/auth')
-export class ParentAuthController {
-  constructor(
-    private readonly authService: ParentAuthService,
-    private readonly apiUtilsSevice: ApiUtilsService,
-  private readonly apiUtilsService: ApiUtilsService,
-    private readonly googleService: GoogleService,
-      private readonly jwtService: JwtService,
-  ) {}
+ export class ParentAuthController {
+    googleService: any;
+    jwtService: any;
+    constructor(
+        private readonly authService: ParentAuthService,
+        private readonly apiUtilsSevice: ApiUtilsService,
+    ) {}
 
   @Post('signup')
   async signup(@Body() dto: ParentSignupDto) {
@@ -394,124 +386,7 @@ async loginWithPhone(@Body('token') idToken: string) {
         const data = await this.authService.updateProfile(user, dto);
         return this.apiUtilsSevice.make_response(data);
     }
-
-
-  // Redirect WebView to Firebase Phone login (or your hosted Phone login page)
-  @Get('login-with-phone')
-  async phoneLoginPage(@Res() res: Response) {
-    // Replace with your actual hosted Phone login page URL
-    return res.redirect('https://your-firebase-phone-login-page-url.com');
-  }
-  // @Post('google-login')
-  // async googleLogin(@Body('idToken') idToken: string) {
-  //   if (!idToken) {
-  //     throw new BadRequestException('ID token is required');
-  //   }
-
-  //   const user = await this.authService.verifyGoogleIdToken(idToken);
-  //   return { message: 'Login successful', user };
-  // }
-     @Post('google-login')
-    async googleLogin(@Body() dto: GoogleLoginDto) {
-        const data = await this.authService.googleLogin(dto.token);
-        return this.apiUtilsSevice.make_response(data);
-    }
-
-  @Get('app-login-with-phone')
-  async appphoneLoginPage(@Res() res: Response) {
-    return res.send('Phone login test successful');
-  }
-
-@Get('google/auth-url')
-getGoogleAuthUrl(@Res() res: Response) {
-  const url = this.googleService.generateAuthUrl();
-  return res.status(200).json({ url }); // ✅ Must end response
-}
-
-
-  // 2. Accept code and exchange tokens
- @Post('login-with-google-from-app')
-async loginWithGoogleFromApp(@Body() dto: LoginWithGoogleDtoapp) {
-  const result = await this.googleService.exchangeCode(dto.code);
-
-  const parent = await this.authService.findOrCreateParentUserFromGoogle(result.profile);
-
-  const token = this.jwtService.sign({
-    id: parent.id,
-    email: result.profile.email,
-    role: 'parent',
-  });
-
-  return {
-    token,
-    parent,
-  };
-}
-
-// @Get('google/callback')
-// async googleRedirect(@Query('code') code: string, @Res() res: Response) {
-//   try {
-//     if (!code) {
-//       return res.status(400).json({ message: 'No code provided' });
-//     }
-
-//     console.log('✅ Received Google auth code:', code);
-
-//     const result = await this.googleService.exchangeCode(code);
-//     console.log('✅ Google profile:', result.profile);
-
-//     const parent = await this.authService.findOrCreateParentUserFromGoogle(result.profile);
-//     console.log('✅ Parent user:', parent);
-
-//   const token = this.jwtService.sign({
-//   id: parent.id,
-//   email: result.profile.email, // ✅ Use from Google profile
-//   role: 'parent',
-// });
-
-//     const redirectUrl = `${envConstant.CLIENT_BASE_URL}/parent/oauth-success?token=${token}`;
-//     console.log('✅ Redirecting to:', redirectUrl);
-
-//     return res.redirect(redirectUrl);
-
-//   } catch (err) {
-//     console.error('❌ Google callback error:', err);
-//     return res.status(500).json({ message: 'Internal server error', error: err.message });
-//   }
-// }
-// @Get('google/callback')
-// async googleRedirect(@Query('code') code: string, @Res() res: Response) {
-//   try {
-//     if (!code) {
-//       return res.status(400).json({ message: 'No code provided' });
-//     }
-
-//     console.log('✅ Received Google auth code:', code);
-
-//     const result = await this.googleService.exchangeCode(code);
-//     console.log('✅ Google profile:', result.profile);
-
-//     const parent = await this.authService.findOrCreateParentUserFromGoogle(result.profile);
-//     console.log('✅ Parent user:', parent);
-
-//     const token = this.jwtService.sign({
-//       id: parent.id,
-//       email: result.profile.email,
-//       role: 'parent',
-//     });
-
-//     // ✅ Use a custom URI scheme the MAUI app can listen to
-//     const redirectUrl = `myapp://auth-success?token=${token}`;
-//     console.log('✅ Redirecting to:', redirectUrl);
-
-//     return res.redirect(redirectUrl);
-
-//   } catch (err) {
-//     console.error('❌ Google callback error:', err);
-//     return res.status(500).json({ message: 'Internal server error', error: err.message });
-//   }
-// }
-@Get('google/callback')
+    @Get('google/callback')
 async googleRedirect(@Query('code') code: string, @Res() res: Response) {
   try {
     if (!code) {
@@ -543,10 +418,4 @@ async googleRedirect(@Query('code') code: string, @Res() res: Response) {
     });
   }
 }
-
-
-
 }
-
-
- 

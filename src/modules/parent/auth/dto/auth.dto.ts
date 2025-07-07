@@ -106,7 +106,7 @@ export class UpdateParentProfileDto {
     @IsString()
     @MinLength(2)
     name?: string;
-
+  phoneNumber?: string;
     @IsOptional()
     @IsString()
     @MinLength(6)

@@ -784,16 +784,7 @@ import { UpdateProfileDto } from '../dto/auth.dto'; // Adjust path as needed
 import { UpdateParentProfileDto } from '../dto/auth.dto';
 import { OAuth2Client } from 'google-auth-library';
 
-
-// import { ParentSignupDto, ParentSigninDto, ConnectChildrenDto, DisconnectChildrenDto, UpdateParentProfileDto } from '../dto/auth.dto';
-// import { PrismaService } from 'src/prisma/prisma.service';
-// import { EventEmitter2 } from '@nestjs/event-emitter';
-// import { RoleEnum } from '@prisma/client';
-// import { CACHE_MANAGER } from '@nestjs/cache-manager';
-// import { Cache } from 'cache-manager';
-// import { firebaseAuth } from 'src/config/firebase.config';
-// import { UpdateProfileDto } from '../dto/auth.dto'; // Adjust path as needed
-// import { OAuth2Client } from 'google-auth-library';
+import { GoogleService } from '@modules/common/services/google/google.service';
 
 @Injectable()
 export class ParentAuthService {
@@ -1148,325 +1139,77 @@ constructor(
       email: user.email
     };
   }
-
-
-async loginWithGoogle(idToken: string) {
-  const decoded = await firebaseAuth.verifyIdToken(idToken);
-  const firebaseUser = await firebaseAuth.getUser(decoded.uid);
-
-  // Find user in your DB by Firebase UID
-  const user = await this.prisma.user.findFirst({
-    where: { firebaseUid: firebaseUser.uid },
-    include: { parent: true }
-  });
-
-  if (!user || user.role !== 'parent' || !user.parent) {
-    throw new UnauthorizedException('Parent not found');
-  }
-
-  const payload = {
-    id: user.parent.id,
-    email: user.email,
-    role: user.role,
-  };
-
-  const token = this.jwtService.sign(payload);
-
-  return {
-    token,
-    parent: {
-      ...user.parent,
-      name: user.name,
-      email: user.email,
-    }
-  };
-}
-
-
-async signupWithGoogle(idToken: string) {
-  return this.loginWithGoogle(idToken);
-}
-
-
- async loginWithPhone(idToken: string) {
-    try {
-      console.log('📥 Received Firebase ID Token:', idToken);
-
-      // ✅ Verify Firebase Token
-      const decodedToken = await firebaseAuth.verifyIdToken(idToken);
-      const firebaseUser = await firebaseAuth.getUser(decodedToken.uid);
-
-      console.log('🔐 Decoded Firebase User:', firebaseUser);
-
-      // 🔍 Find user by Firebase UID
-      let user = await this.prisma.user.findFirst({
-        where: { firebaseUid: firebaseUser.uid },
-        include: { parent: true },
-      });
-
-      // 🆕 If user doesn't exist, create new one
-      if (!user) {
-        user = await this.prisma.user.create({
-          data: {
-            name: firebaseUser.displayName || 'New Parent',
-            email: firebaseUser.email || null,
-            phoneNumber: firebaseUser.phoneNumber,
-            firebaseUid: firebaseUser.uid,
-            role: RoleEnum.parent,
-            verified: true,
-            parent: {
-              create: { address: '' },
-            },
-          },
-          include: { parent: true },
-        });
-
-        console.log('🆕 New user created:', user);
-      }
-
-      // ❌ User exists but not a parent
-      if (!user.parent || user.role !== RoleEnum.parent) {
-        throw new UnauthorizedException('Parent not found or invalid role');
-      }
-
-      // ✅ Create JWT Token
-      const payload = {
-        id: user.parent.id,
-        email: user.email,
-        role: user.role,
-      };
-
-      const token = this.jwtService.sign(payload);
-
-      // ✅ Return response
-      return {
-        token,
-        parent: {
-          ...user.parent,
-          name: user.name,
-          email: user.email,
-        },
-      };
-    } catch (err) {
-      console.error('❌ loginWithPhone Error:', err);
-    //  throw new InternalServerErrorException('Login with phone failed.');
-    }
-  }
-// async updateParentProfile(parentId: string, dto: UpdateProfileDto) {
-//   const updatedParent = await this.prisma.parent.update({
-//     where: { id: parentId },
-//     data: {
-//       address: dto.address,
-//       user: {
-//         update: {
-//           name: dto.name,
-//           email: dto.email,
-//           phoneNumber: dto.phoneNumber,
-//         },
-//       },
-//     },
-//     include: { user: true },
-//   });
-
-//   return {
-//     updatedUser: {
-//       id: updatedParent.user.id,
-//       name: updatedParent.user.name,
-//       email: updatedParent.user.email,
-//       phoneNumber: updatedParent.user.phoneNumber,
-//       address: updatedParent.address,
-//     },
-//   };
-// }
-async verifyGoogleIdToken(idToken: string) {
+async updateProfile(user: any, dto: UpdateParentProfileDto) {
   try {
-    // 1. Verify token using Firebase Admin SDK
-    const decoded = await firebaseAuth.verifyIdToken(idToken);
-    const firebaseUser = await firebaseAuth.getUser(decoded.uid);
+    const updateData: any = {};
+    const parentUpdateData: any = {};
 
-    // 2. Check if the user exists in DB
-    const user = await this.prisma.user.findFirst({
-      where: { firebaseUid: firebaseUser.uid },
-      include: { parent: true },
-    });
-
-    if (!user || !user.parent || user.role !== RoleEnum.parent) {
-      throw new UnauthorizedException('Parent user not found or role mismatch.');
-    }
-
-    // 3. Generate JWT
-    const payload = {
-      id: user.parent.id,
-      email: user.email,
-      role: user.role,
-    };
-
-    const token = this.jwtService.sign(payload);
-
-    // 4. Return parent info
-    return {
-      token,
-      parent: {
-        ...user.parent,
-        name: user.name,
-        email: user.email,
-      },
-    };
-  } catch (err) {
-    console.error('❌ Error verifying Google ID token:', err);
-    throw new UnauthorizedException('Invalid or expired Google ID token');
-  }
-}
-// async findOrCreateParentUserFromGoogle(profile: {
-//   id: string;
-//   email: string;
-//   name: string;
-//   picture?: string;
-// }) {
-//   const user = await this.prisma.user.findFirst({
-//     where: {
-//       email: profile.email,
-//       firebaseUid: profile.id, // assuming profile.id is Google UID
-//       role: RoleEnum.parent,
-//     },
-//     include: {
-//       parent: true,
-//     },
-//   });
-
-//   if (user?.parent) return user.parent;
-
-//   const newUser = await this.prisma.user.create({
-//     data: {
-//       name: profile.name,
-//       email: profile.email,
-//       firebaseUid: profile.id,
-//       role: RoleEnum.parent,
-//       verified: true,
-//       parent: {
-//         create: {},
-//       },
-//     },
-//     include: {
-//       parent: true,
-//     },
-//   });
-
-//   return newUser.parent;
-// }
-
-async findOrCreateParentUserFromGoogle(profile: {
-  id: string;
-  email: string;
-  name: string;
-  picture?: string;
-}) {
-  const email = profile.email.toLowerCase();
-
-  // Step 1: Upsert ensures no duplicate email issue
-  const user = await this.prisma.user.upsert({
-    where: { email },
-    update: {}, // No changes to update now
-    create: {
-      name: profile.name,
-      email,
-      firebaseUid: profile.id, // Google UID
-      role: RoleEnum.parent,
-      verified: true,
-    
-    },
-  });
-
-  // Step 2: Check if parent exists
-  let parent = await this.prisma.parent.findUnique({
-    where: { userId: user.id },
-  });
-
-  // Step 3: Create parent if not exists
-  if (!parent) {
-    parent = await this.prisma.parent.create({
-      data: {
-        user: { connect: { id: user.id } },
-      },
-    });
-  }
-
-  return parent;
-}
-
-
-
-
-
-//  getProfile(user: any) {
-//     throw new Error('Method not implemented.');
-//   }
-
-
-
-   async updateProfile(user: any, dto: UpdateParentProfileDto) {
-    try {
-      const updateData: any = {};
-      const parentUpdateData: any = {};
-  
-      // If new password is provided, validate current password
-      if (dto.newPassword?.trim()) {
-        if (!dto.currentPassword?.trim()) {
-          throw new BadRequestException('Current password is required to set new password');
-        }
-  
-        const currentUser = await this.prisma.user.findUnique({
-          where: { id: user.userId },
-        });
-  
-        const isPasswordValid = await bcrypt.compare(dto.currentPassword, currentUser.password);
-        if (!isPasswordValid) {
-          throw new BadRequestException('Current password is incorrect');
-        }
-  
-        updateData.password = await bcrypt.hash(dto.newPassword, 10);
+    // ✅ Password update (with validation)
+    if (dto.newPassword?.trim()) {
+      if (!dto.currentPassword?.trim()) {
+        throw new BadRequestException('Current password is required to set new password');
       }
-  
-      // Update name if provided
-      if (dto.name?.trim()) {
-        updateData.name = dto.name.trim();
-      }
-  
-      // Update address if provided
-      if (dto.address?.trim()) {
-        parentUpdateData.address = dto.address.trim();
-      }
-  
-      const updatedUser = await this.prisma.user.update({
+
+      const currentUser = await this.prisma.user.findUnique({
         where: { id: user.userId },
-        data: {
-          ...updateData,
-          parent: {
-            update: parentUpdateData,
-          },
-        },
-        include: {
-          parent: true,
-        },
       });
-  
-      return {
-        message: 'Profile updated successfully',
-        user: {
-          id: updatedUser.id,
-          name: updatedUser.name,
-          email: updatedUser.email,
-          role: updatedUser.role,
-          address: updatedUser.parent?.address || null,
-        },
-      };
-    } catch (error) {
-      if (error.code === 'P2002') {
-        throw new BadRequestException('Email already exists');
+
+      const isPasswordValid = await bcrypt.compare(dto.currentPassword, currentUser.password);
+      if (!isPasswordValid) {
+        throw new BadRequestException('Current password is incorrect');
       }
-      throw error;
+
+      updateData.password = await bcrypt.hash(dto.newPassword, 10);
     }
+
+    // ✅ Name update
+    if (dto.name?.trim()) {
+      updateData.name = dto.name.trim();
+    }
+
+    // ✅ Phone number update
+    if (dto.phoneNumber?.trim()) {
+      updateData.phoneNumber = dto.phoneNumber.trim();
+    }
+
+    // ✅ Address update (in parent relation)
+    if (dto.address?.trim()) {
+      parentUpdateData.address = dto.address.trim();
+    }
+
+    // ✅ Update user with nested parent update
+    const updatedUser = await this.prisma.user.update({
+      where: { id: user.userId },
+      data: {
+        ...updateData,
+        parent: {
+          update: parentUpdateData,
+        },
+      },
+      include: {
+        parent: true,
+      },
+    });
+
+    return {
+      message: 'Profile updated successfully',
+      user: {
+        id: updatedUser.id,
+        name: updatedUser.name,
+        email: updatedUser.email,
+        role: updatedUser.role,
+        phoneNumber: updatedUser.phoneNumber,
+        address: updatedUser.parent?.address || null,
+      },
+    };
+  } catch (error) {
+    if (error.code === 'P2002') {
+      throw new BadRequestException('Email or phone number already exists');
+    }
+    throw error;
   }
+}
+
   
   async getProfile(user: any) {
     try {
@@ -1522,4 +1265,46 @@ async findOrCreateParentUserFromGoogle(profile: {
     } catch (error) {
       throw error;
     }
-}}
+  } 
+  async findOrCreateParentUserFromGoogle(profile: {
+  id: string;
+  email: string;
+  name: string;
+  picture?: string;
+}) {
+  const email = profile.email.toLowerCase();
+
+  // Step 1: Upsert ensures no duplicate email issue
+  const user = await this.prisma.user.upsert({
+    where: { email },
+    update: {}, // No changes to update now
+    create: {
+      name: profile.name,
+      email,
+      firebaseUid: profile.id, // Google UID
+      role: RoleEnum.parent,
+      verified: true,
+    
+    },
+  });
+
+  // Step 2: Check if parent exists
+  let parent = await this.prisma.parent.findUnique({
+    where: { userId: user.id },
+  });
+
+  // Step 3: Create parent if not exists
+  if (!parent) {
+    parent = await this.prisma.parent.create({
+      data: {
+        user: { connect: { id: user.id } },
+      },
+    });
+  }
+
+  return parent;
+}
+
+
+
+}
