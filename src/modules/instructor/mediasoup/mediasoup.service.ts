@@ -147,11 +147,14 @@ export class MediasoupService {
   }
 
   handleDisconnect(peerId: string) {
+    let producerIds: string[] = [];
     for (const [roomId, room] of this.rooms.entries()) {
       const peer = room.peers.get(peerId);
       if (!peer) continue;
 
       console.log(`Cleaning up resources for peer ${peerId} in room ${roomId}`);
+
+      producerIds = Array.from(peer.producers.keys());
 
       // Close all producers
       for (const [producerKey, producer] of peer.producers.entries()) {
@@ -209,6 +212,7 @@ export class MediasoupService {
 
       break;
     }
+    return producerIds;
   }
 
   getRouterRtpCapabilities(roomId: string) {
@@ -269,9 +273,11 @@ export class MediasoupService {
       ? peer?.transports.producer
       : peer?.transports.consumer;
     if (!transport) throw new Error('Transports not found');
-    console.log("Transport Variables",transport)
+    console.log('Transport Variables', transport);
     if (transport.dtlsState === 'connected') {
-      console.warn(`Transport already connected for ${peerId} in room ${roomId}`);
+      console.warn(
+        `Transport already connected for ${peerId} in room ${roomId}`,
+      );
       return;
     }
     try {
@@ -280,7 +286,7 @@ export class MediasoupService {
       console.error(`Error connecting transport: ${err.message}`);
       throw err;
     }
-  
+
     console.log(
       `${sender ? 'Producer' : 'Consumer'} transport connected for ${peerId} in room ${roomId}`,
     );
