@@ -9,6 +9,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { firebaseAuth } from 'src/config/firebase.config';
 import { FileLinkDto } from '../dtos/fileLink.dto';
 import { MinioService } from './minio.service';
+import { envConstant } from '@constants/index';
 
 @Injectable()
 export class CommonService {
@@ -113,6 +114,29 @@ export class CommonService {
         take: Number(queryDto.limit),
       });
 
+      const enriched = await Promise.all(
+        courses.map(async ({ thumbnailId, ...rest }) => {
+          let thumbnailUrl = null;
+          if (thumbnailId) {
+            const fileRecord = await this.prisma.files.findUnique({
+              where: { id: thumbnailId },
+              select: { objectKey: true },
+            });
+            if (fileRecord && fileRecord.objectKey) {
+              thumbnailUrl = await this.minioService.getFileUrl(
+                envConstant.PUBLIC_BUCKET_NAME,
+                fileRecord.objectKey,
+              );
+            }
+          }
+
+          return {
+            ...rest,
+            thumbnailUrl,
+          };
+        }),
+      );
+
       const totalCount = await this.prisma.course.count({
         where: {
           approvalStatus: AdminApprovalEnum.approved,
@@ -134,7 +158,7 @@ export class CommonService {
       });
 
       return {
-        courses,
+        courses: enriched,
         totalCount,
         limit: queryDto.limit,
       };
@@ -165,8 +189,29 @@ export class CommonService {
         },
       });
 
+      if (!course) {
+        return { course: null };
+      }
+
+      let thumbnailUrl: string | null = null;
+      if (course.thumbnailId) {
+        const fileRecord = await this.prisma.files.findUnique({
+          where: { id: course.thumbnailId },
+          select: { objectKey: true },
+        });
+        if (fileRecord?.objectKey) {
+          thumbnailUrl = await this.minioService.getFileUrl(
+            envConstant.PUBLIC_BUCKET_NAME,
+            fileRecord.objectKey,
+          );
+        }
+      }
+
       return {
-        course,
+        course: {
+          ...course,
+          thumbnailUrl,
+        },
       };
     } catch (error) {
       if (error.statusCode === 500) {
@@ -203,6 +248,29 @@ export class CommonService {
         take: Number(queryDto.limit),
       });
 
+      const enriched = await Promise.all(
+        courses.map(async ({ thumbnailId, ...rest }) => {
+          let thumbnailUrl = null;
+          if (thumbnailId) {
+            const fileRecord = await this.prisma.files.findUnique({
+              where: { id: thumbnailId },
+              select: { objectKey: true },
+            });
+            if (fileRecord && fileRecord.objectKey) {
+              thumbnailUrl = await this.minioService.getFileUrl(
+                envConstant.PUBLIC_BUCKET_NAME,
+                fileRecord.objectKey,
+              );
+            }
+          }
+
+          return {
+            ...rest,
+            thumbnailUrl,
+          };
+        }),
+      );
+
       const totalCount = await this.prisma.course.count({
         where: {
           categoryId: categoryId,
@@ -211,7 +279,7 @@ export class CommonService {
       });
 
       return {
-        courses,
+        courses: enriched,
         totalCount,
         limit: queryDto.limit,
       };

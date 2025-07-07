@@ -8,11 +8,13 @@ import { CourseFilterDto } from '../dtos/courseFilter.dto';
 import { ResendEmailVerificationLinkDto } from '../dtos/resendVerificationLink.dto';
 import { FileLinkDto } from '../dtos/fileLink.dto';
 import { Response } from 'express';
+import { MinioService } from '../services/minio.service';
 
 @Controller('common')
 export class CommonController {
   constructor(
     private readonly commonService: CommonService,
+    private readonly minioservice: MinioService,
     private readonly apiUtilsSevice: ApiUtilsService,
   ) {}
 

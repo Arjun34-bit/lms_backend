@@ -35,7 +35,9 @@ export class MediasoupGateway {
     try {
       console.log(`${userName} is leaving room ${roomId}`);
 
-      await this.mediasoupService.handleDisconnect(socket.id);
+      const producerIds = await this.mediasoupService.handleDisconnect(
+        socket.id,
+      );
 
       socket.leave(roomId);
 
@@ -44,6 +46,7 @@ export class MediasoupGateway {
         userName,
         socketId: socket.id,
         roomId,
+        producerIds,
       });
 
       return { success: true };
