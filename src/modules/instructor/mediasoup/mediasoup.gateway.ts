@@ -215,19 +215,24 @@ export class MediasoupGateway {
       label: string;
     },
   ) {
-    console.log(
-      `Producing for socket ${socket.id}, kind: ${kind}, label: ${label} and room : ${roomId}`,
-    );
+    try {
+      console.log(
+        `Producing for socket ${socket.id}, kind: ${kind}, label: ${label} and room : ${roomId}`,
+      );
 
-    const producerId = await this.mediasoupService.produce(
-      roomId,
-      socket.id,
-      kind,
-      rtpParameters,
-      label,
-      socket,
-    );
-    return { id: producerId };
+      const producerId = await this.mediasoupService.produce(
+        roomId,
+        socket.id,
+        kind,
+        rtpParameters,
+        label,
+        socket,
+      );
+      return { id: producerId };
+    } catch (error) {
+      console.error('Error producing media:', error);
+      return { success: false, error: error.message };
+    }
   }
 
   @SubscribeMessage('consumeMedia')
@@ -270,11 +275,16 @@ export class MediasoupGateway {
     socket: Socket,
     { roomId, producerId }: { roomId: string; producerId: string },
   ) {
-    console.log(
-      `Resuming consumers for socket ${socket.id}, producerIds and room : ${roomId}:`,
-      producerId,
-    );
-    await this.mediasoupService.resumeConsumer(roomId, socket.id, producerId);
-    return { success: true };
+    try {
+      console.log(
+        `Resuming consumers for socket ${socket.id}, producerIds and room : ${roomId}:`,
+        producerId,
+      );
+      await this.mediasoupService.resumeConsumer(roomId, socket.id, producerId);
+      return { success: true };
+    } catch (error) {
+      console.error('Error resuming paused consumers:', error);
+      return { success: false, error: error.message };
+    }
   }
 }
