@@ -134,28 +134,28 @@ export class CommonService {
         take: Number(queryDto.limit),
       });
 
-      const enriched = await Promise.all(
-        courses.map(async ({ thumbnailId, ...rest }) => {
-          let thumbnailUrl = null;
-          if (thumbnailId) {
-            const fileRecord = await this.prisma.files.findUnique({
-              where: { id: thumbnailId },
-              select: { objectKey: true },
-            });
-            if (fileRecord && fileRecord.objectKey) {
-              thumbnailUrl = await this.minioService.getFileUrl(
-                envConstant.PUBLIC_BUCKET_NAME,
-                fileRecord.objectKey,
-              );
-            }
-          }
+      // const enriched = await Promise.all(
+      //   courses.map(async ({ thumbnailId, ...rest }) => {
+      //     let thumbnailUrl = null;
+      //     if (thumbnailId) {
+      //       const fileRecord = await this.prisma.files.findUnique({
+      //         where: { id: thumbnailId },
+      //         select: { objectKey: true },
+      //       });
+      //       if (fileRecord && fileRecord.objectKey) {
+      //         thumbnailUrl = await this.minioService.getFileUrl(
+      //           envConstant.PUBLIC_BUCKET_NAME,
+      //           fileRecord.objectKey,
+      //         );
+      //       }
+      //     }
 
-          return {
-            ...rest,
-            thumbnailUrl,
-          };
-        }),
-      );
+      //     return {
+      //       ...rest,
+      //       thumbnailUrl,
+      //     };
+      //   }),
+      // );
 
       const totalCount = await this.prisma.course.count({
         where: {
