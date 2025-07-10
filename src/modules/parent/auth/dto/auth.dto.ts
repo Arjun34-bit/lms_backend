@@ -101,11 +101,17 @@ export class GoogleLoginDto {
     token: string;
 }
 
-export class UpdateParentProfileDto {
+
+  export class UpdateParentProfileDto {
     @IsOptional()
     @IsString()
     @MinLength(2)
     name?: string;
+
+ @IsOptional()
+    @IsString()
+    @MinLength(2)
+    phoneNumber?: string;
 
     @IsOptional()
     @IsString()
@@ -121,3 +127,9 @@ export class UpdateParentProfileDto {
     @IsString()
     address?: string;
 }
+
+
+
+
+
+
