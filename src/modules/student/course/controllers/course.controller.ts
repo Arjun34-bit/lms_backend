@@ -4,9 +4,9 @@ import {
   Body,
   Controller,
   Get,
+  Param,
   Post,
   Query,
-  Res,
   UseGuards,
 } from '@nestjs/common';
 import { ApiPaginationResponseT, ApiResponseT } from '@utils/types';
@@ -15,9 +15,10 @@ import { PaginationDto } from 'src/common/dtos/pagination.dto';
 import { CourseService } from '../services/course.service';
 import { Public } from 'src/common/decorators/public.decorator';
 import JwtStudentAuthGuard from '@modules/student/auth/guards/jwt-auth.guard';
-import { GetUser } from 'src/common/decorators/user.decorator';
-import { StudentJwtDto } from '@modules/common/dtos/student-jwt.dto';
 import { BuyCourseDto } from '../dtos/buyCourse.dto';
+import { StudentJwtDto } from '@modules/common/dtos/student-jwt.dto';
+import { GetUser } from 'src/common/decorators/user.decorator';
+
 
 @Controller()
 @UseGuards(JwtStudentAuthGuard)
@@ -68,20 +69,23 @@ export class CourseController {
     return this.apiUtilsSevice.make_response(data);
   }
 
-  @Post('buy-course')
-  async buyCourse(
-    @Body() dto: BuyCourseDto,
-    @GetUser() user: StudentJwtDto,
-  ): Promise<ApiResponseT> {
-    console.log(dto);
-    const data = await this.courseService.buyCourse(user?.userId, dto.courseId);
+  // @Post('buy-course')
+  // async buyCourse(
+  //   @Body() dto: BuyCourseDto,
+  //   @GetUser() user: StudentJwtDto,
+  // ): Promise<ApiResponseT> {
+  //   console.log(dto);
+  //   const data = await this.courseService.buyCourse(user?.userId, dto.courseId);
 
-    return this.apiUtilsSevice.make_response(data);
-  }
+  //   return this.apiUtilsSevice.make_response(data);
+  // }
 
-  @Public()
-  @Post('verify-payment')
-  async verifyPayment(@Body() paymentData) {
-    return this.courseService.verifyPayment(paymentData);
-  }
-}
+//   @Public()
+//   @Post('verify-payment')
+//   async verifyPayment(@Body() paymentData) {
+//     return this.courseService.verifyPayment(paymentData);
+//   @Get('getalltransaction/:studentId')
+//   async getGroupedTransactions(@Param('studentId') studentId: string) {
+//     return this.courseService.getAllTransactions(studentId);
+//   }
+ }
