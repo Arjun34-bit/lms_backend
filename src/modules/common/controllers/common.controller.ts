@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, Post, Query, Res } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Post, Query, Res, UseGuards } from '@nestjs/common';
 import { ApiUtilsService } from '@utils/utils.service';
 import { CommonService } from '../services/common.service';
 import { ApiPaginationResponseT, ApiResponseT } from '@utils/types';
@@ -8,6 +8,11 @@ import { CourseFilterDto } from '../dtos/courseFilter.dto';
 import { ResendEmailVerificationLinkDto } from '../dtos/resendVerificationLink.dto';
 import { FileLinkDto } from '../dtos/fileLink.dto';
 import { Response } from 'express';
+import { Public } from 'src/common/decorators/public.decorator';
+import { GetUser } from 'src/common/decorators/user.decorator';
+import { StudentJwtDto } from '@modules/common/dtos/student-jwt.dto';
+import { BuyCourseDto } from '@modules/student/course/dtos/buyCourse.dto';
+import JwtStudentAuthGuard from '@modules/student/auth/guards/jwt-auth.guard';
 
 @Controller('common')
 export class CommonController {
@@ -98,6 +103,27 @@ export class CommonController {
   
     const data = await this.commonService.getCourseById(courseId);
     return this.apiUtilsSevice.make_response(data);
+  }
+
+  @UseGuards(JwtStudentAuthGuard)
+  @Post('buy-course')
+  async buyCourse(
+    @Body() dto: BuyCourseDto,
+    @GetUser() user: StudentJwtDto,
+  ): Promise<ApiResponseT> {
+    console.log(dto);
+    const data = await this.commonService.buyCourse(
+      user?.studentId,
+      dto.courseId,
+    );
+
+    return this.apiUtilsSevice.make_response(data);
+  }
+
+  @Public()
+  @Post('verify-payment')
+  async verifyPayment(@Body() paymentData) {
+    return this.commonService.verifyPayment(paymentData);
   }
   
 }
