@@ -17,7 +17,7 @@ import { CourseFilterDto } from '@modules/common/dtos/courseFilter.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Multer } from 'multer';
 import { ReelService } from '../service/reel.service';
-import { ReelUploadDto } from '@modules/common/dtos/reeldto';
+import { CreateReelDto } from '../dto/reelUpload.dto';
 
 @Controller()
 @UseGuards(JwtInstructorAuthGuard)
@@ -30,11 +30,18 @@ export class ReelController {
   @Post('upload-reel')
   @UseInterceptors(FileInterceptor('video'))
   async createReel(
-    @Body() createReelDto: ReelUploadDto,
+    @Body() createReelDto: CreateReelDto,
     @GetUser() user: InstructorJwtDto,
     @UploadedFile() file: Multer.File,
   ) {
     const data = await this.reelservice.uploadReel(createReelDto, user, file);
     return this.apiUtilsSevice.make_response(data);
+  }
+
+
+  @Get()
+  async getAllReels(@GetUser() user: InstructorJwtDto){
+    const data = await this.reelservice.getAllReel(user)
+    return this.apiUtilsSevice.make_response(data)
   }
 }

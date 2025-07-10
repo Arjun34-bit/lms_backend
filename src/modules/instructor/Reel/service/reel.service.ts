@@ -3,7 +3,7 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { MinioService } from '../../../common/services/minio.service';
 import { envConstant } from '@constants/index';
 import { InstructorJwtDto } from '@modules/common/dtos/instructor-jwt.dto';
-import { ReelUploadDto } from '@modules/common/dtos/reeldto';
+import { CreateReelDto } from '../dto/reelUpload.dto';
 import { Multer } from 'multer';
 
 @Injectable()
@@ -14,7 +14,7 @@ export class ReelService {
   ) {}
 
   async uploadReel(
-    dto: ReelUploadDto,
+    dto: CreateReelDto,
     user: InstructorJwtDto,
     file: Multer.File,
   ) {
@@ -25,7 +25,8 @@ export class ReelService {
 
       const objectKey = `reels/${Date.now()}_${file.originalname}`;
 
-      const uploaded = await this.minioService.uploadFile(
+
+      const uploaded = await this.minioService.uploadFileStream(
         envConstant.PUBLIC_BUCKET_NAME,
         file.buffer,
         objectKey,
@@ -50,38 +51,43 @@ export class ReelService {
     }
   }
 
-  async getAllReels() {
+  async getAllReel(user: InstructorJwtDto) {
     try {
       const reels = await this.prisma.videos.findMany({
-        include: {
-          file: true,
-          course: true,
-          courseLessuon: true,
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          created_at: true,
+          file: {
+            select: {
+              bucketName: true,
+              objectKey: true,
+            },
+          },
         },
         orderBy: {
           created_at: 'desc',
         },
       });
-
+  
       const enriched = await Promise.all(
         reels.map(async (reel) => {
           const fileUrl = await this.minioService.getFileUrl(
             reel.file.bucketName,
             reel.file.objectKey,
           );
-
+  
           return {
             id: reel.id,
             title: reel.title,
             description: reel.description,
-            course: reel.course,
-            lesson: reel.courseLessuon,
             fileUrl,
             uploadedAt: reel.created_at,
           };
         }),
       );
-
+  
       return enriched;
     } catch (error) {
       if (error.statusCode === 500) {
@@ -90,4 +96,5 @@ export class ReelService {
       throw error;
     }
   }
+  
 }

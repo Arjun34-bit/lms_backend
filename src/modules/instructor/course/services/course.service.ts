@@ -20,7 +20,7 @@ export class CourseService {
     user: InstructorJwtDto,
     file: Multer.File,
   ) {
-     try {
+    try {
       if (!file) {
         throw new BadRequestException('Please upload thumbnail');
       }
@@ -91,7 +91,7 @@ export class CourseService {
       if (!queryDto.pageNumber) {
         queryDto.pageNumber = 1;
       }
-  
+
       const courses = await this.prisma.course.findMany({
         where: {
           InstructorAssignedToCourse: {
@@ -127,6 +127,11 @@ export class CourseService {
           price: true,
           approvalStatus: true,
           thumbnail: true,
+          _count: {
+            select: {
+              CourseLession: true,
+            },
+          },
           subject: {
             select: {
               id: true,
@@ -157,6 +162,15 @@ export class CourseService {
               name: true,
             },
           },
+          CourseLession: {
+            select: {
+              id: true,
+              lectureName: true,
+              description: true,
+              Videos: true,
+              created_at: true,
+            },
+          },
         },
         orderBy: {
           created_at: 'desc',
@@ -164,17 +178,17 @@ export class CourseService {
         skip: Number(queryDto.limit) * (Number(queryDto.pageNumber) - 1),
         take: Number(queryDto.limit),
       });
-  
+
       const enrichedCourses = await Promise.all(
-        courses.map(async ({ thumbnail, ...rest }) => {
+        courses.map(async ({ thumbnail, _count, ...rest }) => {
           let thumbnailUrl = null;
-  
+
           if (thumbnail?.id) {
             const fileRecord = await this.prisma.files.findUnique({
               where: { id: thumbnail.id },
               select: { objectKey: true },
             });
-  
+
             if (fileRecord?.objectKey) {
               thumbnailUrl = await this.minioService.getFileUrl(
                 envConstant.PUBLIC_BUCKET_NAME,
@@ -182,14 +196,15 @@ export class CourseService {
               );
             }
           }
-  
+
           return {
             ...rest,
+            lessions: _count.CourseLession,
             thumbnailUrl,
           };
         }),
       );
-  
+
       const totalCount = await this.prisma.course.count({
         where: {
           InstructorAssignedToCourse: {
@@ -216,7 +231,7 @@ export class CourseService {
           ],
         },
       });
-  
+
       return {
         courses: enrichedCourses,
         totalCount,
@@ -229,7 +244,6 @@ export class CourseService {
       throw error;
     }
   }
-  
 
   async assignedCoursesStats(user: InstructorJwtDto) {
     try {
@@ -278,42 +292,38 @@ export class CourseService {
     }
   }
 
-  
   async getAllCourses(user: InstructorJwtDto) {
     // 1) Fetch all fields for each course
     const courses = await this.prisma.course.findMany({
       where: {
-        InstructorAssignedToCourse: { some: { instructorId: user.instructorId } },
+        InstructorAssignedToCourse: {
+          some: { instructorId: user.instructorId },
+        },
       },
     });
-  
-   const enriched = await Promise.all(
-  courses.map(async ({ thumbnailId, ...rest }) => {
-    let thumbnailUrl = null;
-    if (thumbnailId) {
-      const fileRecord = await this.prisma.files.findUnique({
-        where: { id: thumbnailId },
-        select: { objectKey: true },
-      });
-      if (fileRecord && fileRecord.objectKey) {
-        thumbnailUrl = await this.minioService.getFileUrl(
-          envConstant.PUBLIC_BUCKET_NAME,
-          fileRecord.objectKey,
-        );
-      }
-    }
-    return {
-      ...rest,
-      thumbnailUrl,
-    };
-  }),
-);
 
-  
+    const enriched = await Promise.all(
+      courses.map(async ({ thumbnailId, ...rest }) => {
+        let thumbnailUrl = null;
+        if (thumbnailId) {
+          const fileRecord = await this.prisma.files.findUnique({
+            where: { id: thumbnailId },
+            select: { objectKey: true },
+          });
+          if (fileRecord && fileRecord.objectKey) {
+            thumbnailUrl = await this.minioService.getFileUrl(
+              envConstant.PUBLIC_BUCKET_NAME,
+              fileRecord.objectKey,
+            );
+          }
+        }
+        return {
+          ...rest,
+          thumbnailUrl,
+        };
+      }),
+    );
+
     return enriched;
   }
-  
-  
-  
-
 }

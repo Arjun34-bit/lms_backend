@@ -7,4 +7,4 @@ import { ReelService } from './service/reel.service';
   controllers: [ReelController],
   providers: [ReelService],
 })
-export class CourseModule {}
+export class ReelModule {}
