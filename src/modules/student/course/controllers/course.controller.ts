@@ -3,6 +3,7 @@ import { CommonService } from '@modules/common/services/common.service';
 import {
   Controller,
   Get,
+  Param,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -35,5 +36,10 @@ export class CourseController {
       data.totalCount,
       data.limit,
     );
+  }
+
+  @Get('getalltransaction/:studentId')
+  async getGroupedTransactions(@Param('studentId') studentId: string) {
+    return this.courseService.getAllTransactions(studentId);
   }
 }
