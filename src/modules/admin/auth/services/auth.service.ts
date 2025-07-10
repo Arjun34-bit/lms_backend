@@ -92,8 +92,8 @@ const user = await this.prisma.user.findUnique({
         include: { user: true },
       });
 
-      if (!instructor) {
-        throw new NotFoundException('Instructor not found');
+      if (!instructor || !instructor.user) {
+        throw new NotFoundException('Instructor or associated user not found');
       }
 
       const updatedInstructor = await this.prisma.instructor.update({
