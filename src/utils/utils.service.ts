@@ -3,6 +3,9 @@ import { ApiResponse as ApiResponseInterface } from './interfaces';
 import { ApiPaginationResponseT, ApiResponseT } from './types';
 
 export class Response implements ApiResponseInterface {
+  redirect(arg0: string) {
+    throw new Error('Method not implemented.');
+  }
   /**
    * Standard Response Builder Implementation
    * @param partial

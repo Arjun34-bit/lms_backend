@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Query, Res } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Post, Query, Res } from '@nestjs/common';
 import { ApiUtilsService } from '@utils/utils.service';
 import { CommonService } from '../services/common.service';
 import { ApiPaginationResponseT, ApiResponseT } from '@utils/types';
@@ -44,6 +44,12 @@ export class CommonController {
     return this.apiUtilsSevice.make_response(data);
   }
 
+  /**
+   * Get all courses with filters
+   * @param queryDto Pagination parameters (limit, pageNumber)
+   * @param filterDto Course filters (categoryId, languageId, departmentId, subjectId, courseName, instructorName, minPrice, maxPrice)
+   * @returns Paginated list of courses with total count
+   */
   @Get('courses')
   async getCourses(
     @Query() queryDto: PaginationDto,
@@ -85,4 +91,15 @@ export class CommonController {
     const fileStream = await this.commonService.getFileStream(dto);
     fileStream.pipe(res);
   }
+
+  @Get('course')
+  async getCourseById(@Query('courseId') courseId: string): Promise<ApiResponseT> {
+    if (!courseId) {
+      throw new BadRequestException('courseId query param is required');
+    }
+  
+    const data = await this.commonService.getCourseById(courseId);
+    return this.apiUtilsSevice.make_response(data);
+  }
+  
 }

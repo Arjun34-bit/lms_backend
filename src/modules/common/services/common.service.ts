@@ -93,20 +93,40 @@ export class CommonService {
         where: {
           approvalStatus: AdminApprovalEnum.approved,
           AND: [
-            {
-              categoryId: filterDto.categoryId,
-            },
-            {
-              languageId: filterDto.languageId,
-            },
-            {
-              departmentId: filterDto.departmentId,
-            },
-            {
-              subjectId: filterDto.subjectId,
-            },
+            filterDto.categoryId ? { categoryId: filterDto.categoryId } : {},
+            filterDto.languageId ? { languageId: filterDto.languageId } : {},
+            filterDto.departmentId
+              ? { departmentId: filterDto.departmentId }
+              : {},
+            filterDto.subjectId ? { subjectId: filterDto.subjectId } : {},
+            filterDto.courseName
+              ? {
+                  title: {
+                    contains: filterDto.courseName,
+                    mode: 'insensitive',
+                  },
+                }
+              : {},
+            filterDto.minPrice ? { price: { gte: filterDto.minPrice } } : {},
+            filterDto.maxPrice ? { price: { lte: filterDto.maxPrice } } : {},
+            filterDto.instructorName
+              ? {
+                  // instructor: {
+                  //   user: {
+                  //     name: { contains: filterDto.instructorName, mode: 'insensitive' }
+                  //   }
+                  // }
+                }
+              : {},
           ],
         },
+        // include: {
+        //   instructor: {
+        //     include: {
+        //       user: true
+        //     }
+        //   }
+        // },
         orderBy: {
           created_at: 'desc',
         },
@@ -141,21 +161,56 @@ export class CommonService {
         where: {
           approvalStatus: AdminApprovalEnum.approved,
           AND: [
-            {
-              categoryId: filterDto.categoryId,
-            },
-            {
-              languageId: filterDto.languageId,
-            },
-            {
-              departmentId: filterDto.departmentId,
-            },
-            {
-              subjectId: filterDto.subjectId,
-            },
+            filterDto.categoryId ? { categoryId: filterDto.categoryId } : {},
+            filterDto.languageId ? { languageId: filterDto.languageId } : {},
+            filterDto.departmentId
+              ? { departmentId: filterDto.departmentId }
+              : {},
+            filterDto.subjectId ? { subjectId: filterDto.subjectId } : {},
+            filterDto.courseName
+              ? {
+                  title: {
+                    contains: filterDto.courseName,
+                    mode: 'insensitive',
+                  },
+                }
+              : {},
+            filterDto.minPrice ? { price: { gte: filterDto.minPrice } } : {},
+            filterDto.maxPrice ? { price: { lte: filterDto.maxPrice } } : {},
+            filterDto.instructorName
+              ? {
+                  // instructor: {
+                  //   user: {
+                  //     name: { contains: filterDto.instructorName, mode: 'insensitive' }
+                  //   }
+                  // }
+                }
+              : {},
           ],
         },
       });
+
+      // const enriched = await Promise.all(
+      //   courses.map(async ({ thumbnailId, ...rest }) => {
+      //     let thumbnailUrl = null;
+      //     if (thumbnailId) {
+      //       const fileRecord = await this.prisma.files.findUnique({
+      //         where: { id: thumbnailId },
+      //         select: { objectKey: true },
+      //       });
+      //       if (fileRecord && fileRecord.objectKey) {
+      //         thumbnailUrl = await this.minioService.getFileUrl(
+      //           envConstant.PUBLIC_BUCKET_NAME,
+      //           fileRecord.objectKey,
+      //         );
+      //       }
+      //     }
+      //     return {
+      //       ...rest,
+      //       thumbnailUrl,
+      //     };
+      //   }),
+      // );
 
       return {
         courses: enriched,
@@ -387,6 +442,40 @@ export class CommonService {
       if (error.statusCode === 500) {
         Logger.error(error?.stack);
       }
+      throw error;
+    }
+  }
+
+  async getCourseById(courseId: string) {
+    try {
+      const course = await this.prisma.course.findUnique({
+        where: { id: courseId },
+      });
+
+      if (!course) {
+        throw new BadRequestException('Course not found');
+      }
+
+      let thumbnailUrl = null;
+      if (course.thumbnailId) {
+        const fileRecord = await this.prisma.files.findUnique({
+          where: { id: course.thumbnailId },
+          select: { objectKey: true },
+        });
+        if (fileRecord && fileRecord.objectKey) {
+          thumbnailUrl = await this.minioService.getFileUrl(
+            envConstant.PUBLIC_BUCKET_NAME,
+            fileRecord.objectKey,
+          );
+        }
+      }
+
+      return {
+        ...course,
+        thumbnailUrl,
+      };
+    } catch (error) {
+      Logger.error(error?.stack || error);
       throw error;
     }
   }

@@ -6,7 +6,6 @@ datasource db {
   provider = "mongodb"
   url      = env("MONGO_URI")
 }
-
 enum RoleEnum {
   admin
   student
@@ -134,6 +133,7 @@ model User {
   address     String?
   image       Files?   @relation(fields: [imageId], references: [id])
   imageId     String?  @db.ObjectId
+  googleId    String?
 
   admin                Admin?
   instructor           Instructor?
