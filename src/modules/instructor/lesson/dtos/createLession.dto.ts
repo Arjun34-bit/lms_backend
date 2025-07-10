@@ -1,6 +1,11 @@
-import { CourseLevelEnum } from '@prisma/client';
+import { CourseLevelEnum, VideoTypeEnum } from '@prisma/client';
 import { Type } from 'class-transformer';
-import { IsNotEmpty, IsString, ValidateNested } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  ValidateNested,
+} from 'class-validator';
 
 export class CreateLessionDto {
   @IsString()
@@ -26,4 +31,7 @@ export class VideoMetaDto {
 
   @IsString()
   description?: string;
+
+  @IsOptional()
+  type?: VideoTypeEnum | 'REEL';
 }

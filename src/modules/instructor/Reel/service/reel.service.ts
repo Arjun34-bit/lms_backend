@@ -5,6 +5,7 @@ import { envConstant } from '@constants/index';
 import { InstructorJwtDto } from '@modules/common/dtos/instructor-jwt.dto';
 import { CreateReelDto } from '../dto/reelUpload.dto';
 import { Multer } from 'multer';
+import { VideoTypeEnum } from '@prisma/client';
 
 @Injectable()
 export class ReelService {
@@ -25,7 +26,6 @@ export class ReelService {
 
       const objectKey = `reels/${Date.now()}_${file.originalname}`;
 
-
       const uploaded = await this.minioService.uploadFileStream(
         envConstant.PUBLIC_BUCKET_NAME,
         file.buffer,
@@ -36,6 +36,7 @@ export class ReelService {
         data: {
           title: dto.title,
           description: dto.description,
+          type: VideoTypeEnum.REEL || 'REEL',
           courseId: dto.courseId,
           courseLessionId: dto.courseLessionId,
           fileId: uploaded.fileData.id,
@@ -54,6 +55,9 @@ export class ReelService {
   async getAllReel(user: InstructorJwtDto) {
     try {
       const reels = await this.prisma.videos.findMany({
+        where: {
+          type: VideoTypeEnum.REEL,
+        },
         select: {
           id: true,
           title: true,
@@ -70,14 +74,14 @@ export class ReelService {
           created_at: 'desc',
         },
       });
-  
+
       const enriched = await Promise.all(
         reels.map(async (reel) => {
           const fileUrl = await this.minioService.getFileUrl(
             reel.file.bucketName,
             reel.file.objectKey,
           );
-  
+
           return {
             id: reel.id,
             title: reel.title,
@@ -87,7 +91,7 @@ export class ReelService {
           };
         }),
       );
-  
+
       return enriched;
     } catch (error) {
       if (error.statusCode === 500) {
@@ -96,5 +100,4 @@ export class ReelService {
       throw error;
     }
   }
-  
 }

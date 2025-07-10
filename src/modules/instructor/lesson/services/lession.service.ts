@@ -5,6 +5,7 @@ import { CreateLessionDto } from '../dtos/createLession.dto';
 import { InstructorJwtDto } from '@modules/common/dtos/instructor-jwt.dto';
 import { Multer } from 'multer';
 import { envConstant } from '@constants/index';
+import { VideoTypeEnum } from '@prisma/client';
 
 @Injectable()
 export class LessionService {
@@ -59,6 +60,7 @@ export class LessionService {
             data: {
               title: meta.title,
               description: meta.description,
+              type: VideoTypeEnum.LECTURE || 'LECTURE',
               courseId,
               courseLessionId: lesson.id,
               fileId: uploaded.fileData.id,

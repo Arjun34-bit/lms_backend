@@ -1,4 +1,5 @@
 import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { VideoTypeEnum } from '@prisma/client';
 
 export class CreateReelDto {
   @IsString()
@@ -8,6 +9,9 @@ export class CreateReelDto {
   @IsString()
   @IsNotEmpty()
   description?: string;
+
+  @IsOptional()
+  type?: VideoTypeEnum | 'REEL';
 
   @IsString()
   @IsNotEmpty()

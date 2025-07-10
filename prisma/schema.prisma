@@ -37,6 +37,11 @@ enum FileTypeEnum {
   image
 }
 
+enum VideoTypeEnum {
+  LECTURE
+  REEL
+}
+
 model Files {
   id         String       @id @default(auto()) @map("_id") @db.ObjectId
   bucketName String
@@ -437,6 +442,7 @@ model Videos {
   id              String        @id @default(auto()) @map("_id") @db.ObjectId
   title           String
   description     String?
+  type            VideoTypeEnum @default(LECTURE)
   courseId        String        @db.ObjectId
   course          Course        @relation(fields: [courseId], references: [id])
   courseLessionId String        @db.ObjectId
