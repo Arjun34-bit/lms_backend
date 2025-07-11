@@ -1,6 +1,6 @@
 
 
-import { Injectable, UnauthorizedException, BadRequestException, Logger, Inject } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException, Logger, Inject, InternalServerErrorException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { ParentSignupDto, ParentSigninDto, ConnectChildrenDto, DisconnectChildrenDto  } from '../dto/auth.dto';
@@ -654,4 +654,61 @@ async findOrCreateParentUserFromGoogle(profile: {
       throw error;
     }
 }
+
+async loginWithPhoneapp(idToken: string) {
+  try {
+    console.log('📥 Firebase ID Token:', idToken);
+    const decodedToken = await firebaseAuth.verifyIdToken(idToken);
+    const firebaseUser = await firebaseAuth.getUser(decodedToken.uid);
+
+    console.log('🔐 Firebase user:', firebaseUser);
+
+    let user = await this.prisma.user.findFirst({
+      where: { firebaseUid: firebaseUser.uid },
+      include: { parent: true },
+    });
+
+    if (!user) {
+      user = await this.prisma.user.create({
+        data: {
+          name: firebaseUser.displayName || 'New Parent',
+          email: firebaseUser.email || null,
+          phoneNumber: firebaseUser.phoneNumber,
+          firebaseUid: firebaseUser.uid,
+          role: RoleEnum.parent,
+          verified: true,
+          parent: {
+            create: { address: '' },
+          },
+        },
+        include: { parent: true },
+      });
+    }
+
+    if (!user.parent || user.role !== RoleEnum.parent) {
+      throw new UnauthorizedException('Parent not found or invalid role');
+    }
+
+    const payload = {
+      id: user.parent.id,
+      email: user.email,
+      role: user.role,
+    };
+
+    const token = this.jwtService.sign(payload);
+
+    return {
+      token,
+      parent: {
+        ...user.parent,
+        name: user.name,
+        email: user.email,
+      },
+    };
+  } catch (err) {
+    console.error('❌ loginWithPhone Error:', err);
+    throw new InternalServerErrorException(err.message || 'Login with phone failed.');
+  }
+}
+
 }

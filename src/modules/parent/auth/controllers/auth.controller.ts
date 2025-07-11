@@ -213,4 +213,19 @@ async googleRedirect(@Query('code') code: string, @Res() res: Response) {
       error: err.message || 'Unknown error',
     });
   }
-}}
+}
+@Post('login-with-phone-app')
+
+async loginWithPhoneapp(@Body('token') idToken: string) {
+  if (!idToken) {
+    throw new BadRequestException('Token is required');
+  }
+
+  const result = await this.authService.loginWithPhone(idToken);
+
+  // ✅ Check what’s being returned
+  console.log('Result:', result);
+
+  return result;
+}
+}
