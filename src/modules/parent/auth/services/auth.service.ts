@@ -1,6 +1,6 @@
 
 
-import { Injectable, UnauthorizedException, BadRequestException, Logger, Inject, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException, Logger, Inject, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { ParentSignupDto, ParentSigninDto, ConnectChildrenDto, DisconnectChildrenDto  } from '../dto/auth.dto';
@@ -14,22 +14,32 @@ import { firebaseAuth } from 'src/config/firebase.config';
 import { UpdateProfileDto } from '../dto/auth.dto'; // Adjust path as needed
 import { UpdateParentProfileDto } from '../dto/auth.dto';
 import { OAuth2Client } from 'google-auth-library';
+import { envConstant } from '@constants/index';
+import * as nodemailer from 'nodemailer';
+import { randomInt } from 'crypto';
+import { EmailService } from './email.service';
 
 @Injectable()
 export class ParentAuthService {
   googleClient: OAuth2Client;
   configService: any;
+  private emailOtpStore = new Map<string, string>();
+  mailer: any;
+  private otpStore = new Map<string, { otp: string; expiresAt: number }>();
+
+
 constructor(
-    private prisma: PrismaService,
-    private jwtService: JwtService,
-    private eventEmitter: EventEmitter2,
-    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
-  ) {
-    this.googleClient = new OAuth2Client(
-      process.env.GOOGLE_CLIENT_ID,
-      process.env.GOOGLE_CLIENT_SECRET
-    );
-  }
+  private prisma: PrismaService,
+  private jwtService: JwtService,
+  private eventEmitter: EventEmitter2,
+  @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
+  private readonly emailService: EmailService // ✅ <-- This line is missing
+) {
+  this.googleClient = new OAuth2Client(
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_SECRET
+  );
+}
 
   async googleLogin(token: string) {
     try {
@@ -711,4 +721,39 @@ async loginWithPhoneapp(idToken: string) {
   }
 }
 
+
+
+ async sendEmailOtp(email: string) {
+    const otp = randomInt(100000, 999999).toString();
+    const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
+
+    this.otpStore.set(email, { otp, expiresAt });
+    await this.emailService.sendOtpEmail(email, otp);
+
+    return { message: 'OTP sent to email' };
+  }
+
+  async verifyEmailOtp(email: string, otp: string) {
+    const record = this.otpStore.get(email);
+    if (!record || record.otp !== otp) {
+      throw new Error('Invalid or expired OTP');
+    }
+
+    if (Date.now() > record.expiresAt) {
+      this.otpStore.delete(email);
+      throw new Error('OTP expired');
+    }
+
+    this.otpStore.delete(email);
+
+    // Here you can return JWT or session
+    return {
+      token: 'dummy-jwt-token-or-generate-real-one',
+      parent: {
+        name: 'Rahul',
+        email,
+        students: [], // optional
+      },
+    };
+  }
 }

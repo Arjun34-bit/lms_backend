@@ -228,4 +228,16 @@ async loginWithPhoneapp(@Body('token') idToken: string) {
 
   return result;
 }
+
+@Post('send-email-otp-app')
+  sendEmailOtp(@Body('email') email: string) {
+    return this.authService.sendEmailOtp(email);
+  }
+
+  @Post('login-with-email-otp-app')
+  verifyEmailOtp(@Body() body: { email: string; otp: string }) {
+    return this.authService.verifyEmailOtp(body.email, body.otp);
+  }
+  
+
 }
