@@ -213,4 +213,31 @@ async googleRedirect(@Query('code') code: string, @Res() res: Response) {
       error: err.message || 'Unknown error',
     });
   }
-}}
+}
+@Post('login-with-phone-app')
+
+async loginWithPhoneapp(@Body('token') idToken: string) {
+  if (!idToken) {
+    throw new BadRequestException('Token is required');
+  }
+
+  const result = await this.authService.loginWithPhone(idToken);
+
+  // ✅ Check what’s being returned
+  console.log('Result:', result);
+
+  return result;
+}
+
+@Post('send-email-otp-app')
+  sendEmailOtp(@Body('email') email: string) {
+    return this.authService.sendEmailOtp(email);
+  }
+
+  @Post('login-with-email-otp-app')
+  verifyEmailOtp(@Body() body: { email: string; otp: string }) {
+    return this.authService.verifyEmailOtp(body.email, body.otp);
+  }
+  
+
+}

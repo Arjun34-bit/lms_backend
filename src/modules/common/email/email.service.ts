@@ -10,6 +10,7 @@ import { OnEvent } from '@nestjs/event-emitter';
 
 @Injectable()
 export class EmailService {
+  sendEmailOtpapp: any;
   constructor(@Inject(CACHE_MANAGER) private readonly cacheManager: Cache) {}
 
   @OnEvent('user.sendVerificationLink')

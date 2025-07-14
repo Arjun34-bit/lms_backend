@@ -1,6 +1,6 @@
 
 
-import { Injectable, UnauthorizedException, BadRequestException, Logger, Inject } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException, Logger, Inject, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { ParentSignupDto, ParentSigninDto, ConnectChildrenDto, DisconnectChildrenDto  } from '../dto/auth.dto';
@@ -14,22 +14,32 @@ import { firebaseAuth } from 'src/config/firebase.config';
 import { UpdateProfileDto } from '../dto/auth.dto'; // Adjust path as needed
 import { UpdateParentProfileDto } from '../dto/auth.dto';
 import { OAuth2Client } from 'google-auth-library';
+import { envConstant } from '@constants/index';
+import * as nodemailer from 'nodemailer';
+import { randomInt } from 'crypto';
+import { EmailService } from './email.service';
 
 @Injectable()
 export class ParentAuthService {
   googleClient: OAuth2Client;
   configService: any;
+  private emailOtpStore = new Map<string, string>();
+  mailer: any;
+  private otpStore = new Map<string, { otp: string; expiresAt: number }>();
+
+
 constructor(
-    private prisma: PrismaService,
-    private jwtService: JwtService,
-    private eventEmitter: EventEmitter2,
-    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
-  ) {
-    this.googleClient = new OAuth2Client(
-      process.env.GOOGLE_CLIENT_ID,
-      process.env.GOOGLE_CLIENT_SECRET
-    );
-  }
+  private prisma: PrismaService,
+  private jwtService: JwtService,
+  private eventEmitter: EventEmitter2,
+  @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
+  private readonly emailService: EmailService // ✅ <-- This line is missing
+) {
+  this.googleClient = new OAuth2Client(
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_SECRET
+  );
+}
 
   async googleLogin(token: string) {
     try {
@@ -654,4 +664,96 @@ async findOrCreateParentUserFromGoogle(profile: {
       throw error;
     }
 }
+
+async loginWithPhoneapp(idToken: string) {
+  try {
+    console.log('📥 Firebase ID Token:', idToken);
+    const decodedToken = await firebaseAuth.verifyIdToken(idToken);
+    const firebaseUser = await firebaseAuth.getUser(decodedToken.uid);
+
+    console.log('🔐 Firebase user:', firebaseUser);
+
+    let user = await this.prisma.user.findFirst({
+      where: { firebaseUid: firebaseUser.uid },
+      include: { parent: true },
+    });
+
+    if (!user) {
+      user = await this.prisma.user.create({
+        data: {
+          name: firebaseUser.displayName || 'New Parent',
+          email: firebaseUser.email || null,
+          phoneNumber: firebaseUser.phoneNumber,
+          firebaseUid: firebaseUser.uid,
+          role: RoleEnum.parent,
+          verified: true,
+          parent: {
+            create: { address: '' },
+          },
+        },
+        include: { parent: true },
+      });
+    }
+
+    if (!user.parent || user.role !== RoleEnum.parent) {
+      throw new UnauthorizedException('Parent not found or invalid role');
+    }
+
+    const payload = {
+      id: user.parent.id,
+      email: user.email,
+      role: user.role,
+    };
+
+    const token = this.jwtService.sign(payload);
+
+    return {
+      token,
+      parent: {
+        ...user.parent,
+        name: user.name,
+        email: user.email,
+      },
+    };
+  } catch (err) {
+    console.error('❌ loginWithPhone Error:', err);
+    throw new InternalServerErrorException(err.message || 'Login with phone failed.');
+  }
+}
+
+
+
+ async sendEmailOtp(email: string) {
+    const otp = randomInt(100000, 999999).toString();
+    const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
+
+    this.otpStore.set(email, { otp, expiresAt });
+    await this.emailService.sendOtpEmail(email, otp);
+
+    return { message: 'OTP sent to email' };
+  }
+
+  async verifyEmailOtp(email: string, otp: string) {
+    const record = this.otpStore.get(email);
+    if (!record || record.otp !== otp) {
+      throw new Error('Invalid or expired OTP');
+    }
+
+    if (Date.now() > record.expiresAt) {
+      this.otpStore.delete(email);
+      throw new Error('OTP expired');
+    }
+
+    this.otpStore.delete(email);
+
+    // Here you can return JWT or session
+    return {
+      token: 'dummy-jwt-token-or-generate-real-one',
+      parent: {
+        name: 'Rahul',
+        email,
+        students: [], // optional
+      },
+    };
+  }
 }

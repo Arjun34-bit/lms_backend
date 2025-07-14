@@ -33,7 +33,7 @@ import { ParentAuthService } from './services/auth.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { JwtParentStrategy } from './strategies/jwt.strategy';
 import { GoogleModule } from 'src/modules/common/services/google/google.module'; // ✅ correct
-
+import { EmailService } from './services/email.service';
 @Module({
   imports: [
     JwtModule.registerAsync({
@@ -46,6 +46,6 @@ import { GoogleModule } from 'src/modules/common/services/google/google.module';
     GoogleModule, // ✅ MUST be here (not in providers)
   ],
   controllers: [ParentAuthController],
-  providers: [ParentAuthService, JwtParentStrategy, PrismaService],
+  providers: [ParentAuthService, JwtParentStrategy, PrismaService ,EmailService],
 })
 export class ParentAuthModule {}
