@@ -1,6 +1,21 @@
 import { Injectable } from '@nestjs/common';
 import * as mediasoup from 'mediasoup';
 import { Socket } from 'socket.io';
+import { ReelService } from '../reel/service/reel.service';
+import { Multer } from 'multer';
+import { CreateReelDto } from '../reel/dto/reelUpload.dto';
+
+import { InstructorJwtDto } from '@modules/common/dtos/instructor-jwt.dto';
+
+import * as puppeteer from 'puppeteer';
+import { exec, ChildProcess, spawn } from 'child_process';
+import * as path from 'path';
+import * as fs from 'fs';
+import * as ffmpegInstaller from '@ffmpeg-installer/ffmpeg';
+import { Readable } from 'stream';
+
+import getPort from "get-port";
+
 
 interface Peer {
   socket: Socket;
@@ -23,7 +38,13 @@ export class MediasoupService {
   private worker: mediasoup.types.Worker;
   private rooms: Map<string, Room> = new Map();
 
-  constructor() {
+  private browserMap: Map<string, puppeteer.Browser> = new Map();
+  private ffmpegMap: Map<
+    string,
+    { ffmpegProcess: ChildProcess; outputFile: string }
+  > = new Map();
+
+  constructor(private readonly reelService: ReelService) {
     this.initializeWorker();
   }
 
@@ -408,5 +429,214 @@ export class MediasoupService {
       console.error('Error resuming consumers:', err);
       throw new Error('Error resuming consumer');
     }
+  }
+
+  async startRecording(roomId: string, peerId: string) {
+    const ffmpegInputs = [];
+    const videoLabels = [];
+    const audioLabels = [];
+
+    let inputIndex = 0;
+
+    const room = this.rooms.get(roomId);
+    if (!room) throw new Error('Room not found');
+
+    const peer = room.peers.get(peerId);
+    if (!peer) throw new Error('Peer not found in the room');
+
+    for (const [key, producer] of peer.producers.entries()) {
+      const port = await getPort();      
+      const rtcPort = await getPort(); 
+
+      const plainTransport = await room.router.createPlainTransport({
+        listenIp: { ip: '127.0.0.1' },
+        rtcpMux: false,
+        comedia: true,
+      });
+
+      await plainTransport.connect({
+        ip: '127.0.0.1',
+        port,
+        rtcpPort: rtcPort,
+      });
+
+      const consumer = await plainTransport.consume({
+        producerId: producer.id,
+        rtpCapabilities: room.router.rtpCapabilities,
+        paused: true,
+      });
+
+      await consumer.resume();
+
+      if (producer.paused) {
+        await producer.resume();
+      }
+
+      ffmpegInputs.push('-i', `udp://127.0.0.1:${port}`);
+
+      if (producer.kind === 'video') {
+        videoLabels.push(`[${inputIndex}:v]`);
+      } else {
+        audioLabels.push(`[${inputIndex}:a]`);
+      }
+
+      inputIndex++;
+    }
+
+    console.log('videoLables', videoLabels);
+    console.log('audioLabels', audioLabels);
+
+    const outputDir = path.join(process.cwd(), 'recordings');
+
+    if (!fs.existsSync(outputDir)) {
+      fs.mkdirSync(outputDir, { recursive: true });
+    }
+
+    const outputFile = path.join(outputDir, `meeting-${Date.now()}.mp4`);
+    // const outputFile = `meeting-${Date.now()}.mp4`
+    const ffmpeg = this.spawnFFmpeg(
+      ffmpegInputs,
+      videoLabels,
+      audioLabels,
+      outputFile,
+    );
+    this.ffmpegMap.set(roomId, { ffmpegProcess: ffmpeg, outputFile });
+  }
+
+  private spawnFFmpeg(
+    inputs: string[],
+    videoLabels: string[],
+    audioLabels: string[],
+    outputFile: string,
+  ) {
+    if (!videoLabels.length && !audioLabels.length) {
+      throw new Error('Missing audio or video streams');
+    }
+    console.log('inputs', inputs);
+    const filters = [];
+
+    if (videoLabels.length > 1) {
+      const gridCols = Math.ceil(Math.sqrt(videoLabels.length));
+      const layout = videoLabels
+        .map(
+          (_, i) => `${(i % gridCols) * 640}_${Math.floor(i / gridCols) * 480}`,
+        )
+        .join('|');
+      filters.push(
+        `${videoLabels.join('')}xstack=inputs=${videoLabels.length}:layout=${layout}[vout]`,
+      );
+    } else if (videoLabels.length === 1) {
+      filters.push(`${videoLabels[0]}copy[vout]`);
+    }
+
+    if (audioLabels.length > 1) {
+      filters.push(
+        `${audioLabels.join('')}amix=inputs=${audioLabels.length}[aout]`,
+      );
+    } else if (audioLabels.length === 1) {
+      filters.push(`${audioLabels[0]}anull[aout]`);
+    }
+
+    const args = [
+      ...inputs,
+      '-filter_complex',
+      filters.join(';'),
+      ...(videoLabels.length ? ['-map', '[vout]'] : []),
+      ...(audioLabels.length ? ['-map', '[aout]'] : []),
+      '-c:v',
+      '-t','10',
+      'libx264',
+      ...(audioLabels.length ? ['-c:a', 'aac'] : []),
+      '-preset',
+      'veryfast',
+      '-tune',
+      'zerolatency',
+      '-y',
+      outputFile,
+    ];
+
+    console.log('Spawning FFmpeg with args:', args.join(' '));
+
+    console.log('Using FFmpeg path:', ffmpegInstaller.path);
+
+    const ffmpeg = spawn(ffmpegInstaller.path, args);
+
+    ffmpeg.stderr.on('data', (data) => {
+      console.log(`FFmpeg: ${data}`);
+    });
+
+    ffmpeg.on('close', (code, signal) => {
+      if (code !== null) {
+        console.log(`FFmpeg exited with code ${code}`);
+      } else if (signal !== null) {
+        console.log(`FFmpeg was killed by signal ${signal}`);
+      } else {
+        console.log('FFmpeg exited with unknown reason (no code or signal)');
+      }
+    });
+
+    ffmpeg.on('error', (err) => {
+      console.error('FFmpeg process error:', err);
+    });
+
+    return ffmpeg;
+  }
+
+  async stopRecording(roomId: string, user: InstructorJwtDto) {
+    const recording = this.ffmpegMap.get(roomId);
+    // console.log('recording', recording);
+    if (!recording) throw new Error('No active recording for this room');
+
+    const { ffmpegProcess, outputFile } = recording;
+
+    console.log('outputFile', outputFile);
+    // console.log('process', process);
+
+
+    return new Promise((resolve, reject) => {
+      ffmpegProcess.once('close', async (code, signal) => {
+        console.log(`FFmpeg exited with code ${code}, signal ${signal}`);
+        try {
+          if (!fs.existsSync(outputFile)) {
+            throw new Error(`Recording file not found at ${outputFile}`);
+          }
+          const buffer = fs.readFileSync(outputFile);
+
+          console.log('buffer', buffer);
+
+          const fakeFile: Multer.File = {
+            fieldname: 'file',
+            originalname: `recording-${roomId}.mp4`,
+            encoding: '7bit',
+            mimetype: 'video/mp4',
+            size: buffer.length,
+            buffer,
+            destination: '',
+            filename: '',
+            path: '',
+            stream: Readable.from(buffer),
+          };
+
+          const dto: CreateReelDto = {
+            title: `Class Recording - ${new Date().toLocaleString()}`,
+            description: 'Auto-recorded session',
+            courseId: '0',
+            courseLessionId: null,
+          };
+
+          const reel = await this.reelService.uploadReel(dto, user, fakeFile);
+
+          fs.unlinkSync(outputFile);
+          this.ffmpegMap.delete(roomId);
+
+          console.log('reel', reel);
+          resolve(reel);
+        } catch (err) {
+          console.error('Failed to process recording upload:', err);
+          reject(err);
+        }
+      });
+      ffmpegProcess.kill('SIGINT');
+    });
   }
 }

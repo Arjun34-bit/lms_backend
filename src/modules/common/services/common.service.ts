@@ -128,6 +128,13 @@ export class CommonService {
               : {},
           ],
         },
+        include: {
+          CourseLession: {
+            select: {
+              lectureName: true,
+            },
+          },
+        },
         // include: {
         //   instructor: {
         //     include: {
@@ -249,8 +256,32 @@ export class CommonService {
           department: true,
           language: true,
           subject: true,
+          CourseLession: {
+            select: {
+              lectureName: true,
+              Videos: {
+                take:1,
+                select:{
+                  title: true,
+                  type: true,
+                  fileId: true,
+                }
+              } 
+            },
+          },
         },
       });
+
+      // const firstVideo = Course:{
+      //   ..course,
+      //   CourseLessionLcourse.CourseLession,map((lession) => {
+      //     const video = lession.video.find(v => v.type === "LECTURE");
+      //     return {
+      //       ...lession,
+      //       Videos:video ? [video] : []
+      //     }
+      //   })
+      // }
 
       if (!course) {
         return { course: null };
@@ -270,10 +301,25 @@ export class CommonService {
         }
       }
 
+      let videoUrl = null;
+      if (course.CourseLession[0].Videos[0].fileId) {
+        const fileRecord = await this.prisma.files.findUnique({
+          where: { id: course.CourseLession[0].Videos[0].fileId},
+          select: { objectKey: true },
+        });
+        if (fileRecord && fileRecord.objectKey) {
+          videoUrl = await this.minioService.getFileUrl(
+            envConstant.PUBLIC_BUCKET_NAME,
+            fileRecord.objectKey,
+          );
+        }
+      }
+
       return {
         course: {
           ...course,
           thumbnailUrl,
+          videoUrl
         },
       };
     } catch (error) {
@@ -477,6 +523,7 @@ export class CommonService {
           );
         }
       }
+
 
       return {
         ...course,

@@ -113,9 +113,8 @@ export class CommonController {
     @Body() dto: BuyCourseDto,
     @GetUser() user: StudentJwtDto,
   ): Promise<ApiResponseT> {
-    console.log(dto);
     const data = await this.commonService.buyCourse(
-      user?.studentId,
+      user?.userId,
       dto.courseId,
     );
 

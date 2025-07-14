@@ -99,7 +99,6 @@ export class LiveClassService {
           approvalStatus: AdminApprovalEnum.approved,
         },
       });
-
       return {
         data: liveClasses,
         totalCount,

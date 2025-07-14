@@ -5,6 +5,7 @@ import { ReelService } from './service/reel.service';
 @Module({
   imports: [],
   controllers: [ReelController],
+  exports:[ReelService],
   providers: [ReelService],
 })
 export class ReelModule {}

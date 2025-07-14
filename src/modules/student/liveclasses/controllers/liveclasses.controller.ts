@@ -15,7 +15,6 @@ export class LiveClassesController {
 
   @Get()
   async getLiveClasses(@GetUser() user: StudentJwtDto) {
-    console.log(user);
     const data = await this.liveClassesService.getLiveClasses(user);
     return this.apiUtilsSevice.make_response(data);
   }
