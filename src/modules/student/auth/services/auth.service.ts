@@ -142,6 +142,7 @@ export class AuthService {
           data: {
             name: firebaseUser.displayName ?? 'Unknown User',
             email: firebaseUser.email ?? null,
+            phoneNumber: firebaseUser.phoneNumber ?? null,
             role: RoleEnum.student,
             firebaseUid: firebaseUser.uid,
             verified: true,
@@ -199,12 +200,15 @@ export class AuthService {
         },
       });
 
+      console.log(user?.phoneNumber);
+
       if (!user) {
         user = await this.prisma.user.create({
           data: {
             name: name || 'Google User',
             email: email.toLowerCase(),
             password: null,
+            phoneNumber: user?.phoneNumber,
             role: RoleEnum.student,
             firebaseUid: uid,
             verified: true,
@@ -266,6 +270,7 @@ export class AuthService {
         userId: user.id,
         name: user.name,
         email: user.email,
+        phoneNumber: user?.phoneNumber,
         role: RoleEnum.student,
         studentId: user?.student?.id,
       };

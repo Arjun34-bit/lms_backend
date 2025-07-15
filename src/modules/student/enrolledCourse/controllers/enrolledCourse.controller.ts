@@ -1,4 +1,4 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, UseGuards } from '@nestjs/common';
 import { ApiUtilsService } from '@utils/utils.service';
 import { EnrolledCourseService } from '../services/enrolledCourse.service';
 import { GetUser } from 'src/common/decorators/user.decorator';
@@ -16,6 +16,18 @@ export class EnrolledCourseController {
   @Get()
   async getEnrolledCourses(@GetUser() user: StudentJwtDto) {
     const data = await this.enrolledCourseService.getEnrolledCourses(user);
+    return this.apiUtilsSevice.make_response(data);
+  }
+
+  @Get('single')
+  async getSingleEnrolledCourse(
+    @GetUser() user: StudentJwtDto,
+    @Body('courseId') courseId: string,
+  ) {
+    const data = await this.enrolledCourseService.getSingleCourse(
+      user,
+      courseId,
+    );
     return this.apiUtilsSevice.make_response(data);
   }
 }

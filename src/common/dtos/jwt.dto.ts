@@ -1,5 +1,11 @@
 import { RoleEnum } from '@prisma/client';
-import { IsEmail, IsEnum, IsMongoId, IsNotEmpty, IsString } from 'class-validator';
+import {
+  IsEmail,
+  IsEnum,
+  IsMongoId,
+  IsNotEmpty,
+  IsString,
+} from 'class-validator';
 
 export class JwtDto {
   @IsNotEmpty()
@@ -17,4 +23,8 @@ export class JwtDto {
   @IsNotEmpty()
   @IsEnum(RoleEnum)
   role: RoleEnum;
+
+  @IsNotEmpty()
+  @IsString()
+  phoneNumber: string;
 }
