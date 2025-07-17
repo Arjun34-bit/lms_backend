@@ -4,7 +4,7 @@ import { UserService } from '../services/user.service';
 import JwtInstructorAuthGuard from '@modules/instructor/auth/guards/jwt-auth.guard';
 import { GetUser } from 'src/common/decorators/user.decorator';
 import { InstructorJwtDto } from '@modules/common/dtos/instructor-jwt.dto';
-import { InstructorProfileUpdateDto } from '../dtos/InstructorProfileDto.dto';
+import { InstructorProfileUpdateDto } from '../dtos/instructorProfileDto.dto';
 
 @Controller()
 @UseGuards(JwtInstructorAuthGuard)

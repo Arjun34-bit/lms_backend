@@ -192,14 +192,10 @@ export class EnrolledCourseService {
       );
 
       return {
-        // ...enrolledCourse,
-        course: {
-          id: course.id,
-          title: course.title,
-          description: course.description,
-          thumbnailUrl,
-          lessons,
-        },
+        ...enrolledCourse,
+        course, // will contains course details and CourseLession details
+        thumbnailUrl, // have thumbnailUrl
+        lessons, // contains video details and videoUrls
       };
     } catch (error) {
       if (error.statusCode === 500) {

@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Post, Query, Res } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Post,
+  Query,
+  Res,
+} from '@nestjs/common';
 import { ApiResponseT } from '@utils/types';
 import { ApiUtilsService } from '@utils/utils.service';
 import { AuthService } from '../services/auth.service';
@@ -31,8 +39,18 @@ export class StudentAuthController {
   }
 
   @Post('login-with-email')
-  async login(@Body() loginDto: LoginDto): Promise<ApiResponseT> {
+  async login(
+    @Body() loginDto: LoginDto,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<ApiResponseT> {
     const data = await this.authService.login(loginDto);
+    res.cookie('auth_token', data.access_token, {
+      httpOnly: true,
+      secure: false, // change it into true on production
+      sameSite: 'strict',
+      maxAge: 1000 * 60 * 60 * 24,
+      path: '/',
+    });
     return this.apiUtilsSevice.make_response(data);
   }
 
@@ -48,5 +66,18 @@ export class StudentAuthController {
     return res.redirect(
       `${envConstant.CLIENT_BASE_URL}/student/verified?message=${data.message}`,
     );
+  }
+
+  @Post('logout')
+  @HttpCode(200)
+  async logout(@Res({ passthrough: true }) res: Response) {
+    res.clearCookie('auth_token', {
+      httpOnly: true,
+      secure: false,
+      sameSite: 'strict',
+      path: '/',
+    });
+
+    return { message: 'Logged out successfully' };
   }
 }

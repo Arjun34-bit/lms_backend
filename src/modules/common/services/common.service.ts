@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { SubjectFilterDto } from '../dtos/subjectFilter.dto';
 import { PaginationDto } from 'src/common/dtos/pagination.dto';
@@ -9,10 +14,8 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { firebaseAuth } from 'src/config/firebase.config';
 import { FileLinkDto } from '../dtos/fileLink.dto';
 import { MinioService } from './minio.service';
- import { envConstant } from '@constants/index';
+import { envConstant } from '@constants/index';
 import Razorpay from 'razorpay';
-
-
 
 @Injectable()
 export class CommonService {
@@ -21,11 +24,12 @@ export class CommonService {
     private readonly prisma: PrismaService,
     private readonly minioService: MinioService,
     private eventEmitter: EventEmitter2,
-
-  ) {  this.razorpay = new Razorpay({
+  ) {
+    this.razorpay = new Razorpay({
       key_id: envConstant.RAZORPAY_KEY_ID,
       key_secret: envConstant.RAZORPAY_KEY_SECRET,
-    });}
+    });
+  }
 
   async getLanguages() {
     try {
@@ -260,13 +264,13 @@ export class CommonService {
             select: {
               lectureName: true,
               Videos: {
-                take:1,
-                select:{
+                take: 1,
+                select: {
                   title: true,
                   type: true,
                   fileId: true,
-                }
-              } 
+                },
+              },
             },
           },
         },
@@ -302,24 +306,29 @@ export class CommonService {
       }
 
       let videoUrl = null;
-      if (course.CourseLession[0].Videos[0].fileId) {
-        const fileRecord = await this.prisma.files.findUnique({
-          where: { id: course.CourseLession[0].Videos[0].fileId},
-          select: { objectKey: true },
-        });
-        if (fileRecord && fileRecord.objectKey) {
-          videoUrl = await this.minioService.getFileUrl(
-            envConstant.PUBLIC_BUCKET_NAME,
-            fileRecord.objectKey,
-          );
+
+      if (course?.CourseLession) {
+        if (course.CourseLession[0]?.Videos[0]?.fileId) {
+          const fileRecord = await this.prisma.files.findUnique({
+            where: { id: course.CourseLession[0]?.Videos[0]?.fileId },
+            select: { objectKey: true },
+          });
+          if (fileRecord && fileRecord.objectKey) {
+            videoUrl = await this.minioService.getFileUrl(
+              envConstant.PUBLIC_BUCKET_NAME,
+              fileRecord.objectKey,
+            );
+          }
         }
+      } else {
+        videoUrl = null;
       }
 
       return {
         course: {
           ...course,
           thumbnailUrl,
-          videoUrl
+          videoUrl,
         },
       };
     } catch (error) {
@@ -524,7 +533,6 @@ export class CommonService {
         }
       }
 
-
       return {
         ...course,
         thumbnailUrl,
@@ -538,29 +546,33 @@ export class CommonService {
   async buyCourse(studentId: string, courseId: string) {
     try {
       // 1. Check if already enrolled (with a successful buy)
-      const alreadyEnrolled = await this.prisma.studentCourseEnrolled.findFirst({
-        where: {
-          courseId,
-          studentId,
-          courseBuy: {
-            status: PaymentStatusEnum.COMPLETED,
+      const alreadyEnrolled = await this.prisma.studentCourseEnrolled.findFirst(
+        {
+          where: {
+            courseId,
+            studentId,
+            courseBuy: {
+              status: PaymentStatusEnum.COMPLETED,
+            },
           },
         },
-      });
-  
+      );
+
       if (alreadyEnrolled) {
-        throw new BadRequestException('You have already enrolled in this course');
+        throw new BadRequestException(
+          'You have already enrolled in this course',
+        );
       }
-  
+
       // 2. Fetch course
       const course = await this.prisma.course.findUnique({
         where: { id: courseId, approvalStatus: AdminApprovalEnum.approved },
       });
-  
+
       if (!course) {
         throw new NotFoundException('Course not found');
       }
-  
+
       // 3. Create Razorpay order
       const order = await this.razorpay.orders.create({
         amount: course.price * 100,
@@ -568,7 +580,7 @@ export class CommonService {
         receipt: `receipt_${Date.now()}`,
         payment_capture: true,
       });
-  
+
       // 4. Create Enrollment (first!)
       const enrollment = await this.prisma.studentCourseEnrolled.create({
         data: {
@@ -576,7 +588,7 @@ export class CommonService {
           studentId,
         },
       });
-  
+
       // 5. Now create CourseBuy using enrollment ID
       const courseBuy = await this.prisma.courseBuy.create({
         data: {
@@ -588,26 +600,25 @@ export class CommonService {
           courseEnrollmentId: enrollment.id,
         },
       });
-  
+
       return { order, courseBuy };
     } catch (error) {
       if (error.statusCode === 500) Logger.error(error?.stack);
       throw error;
     }
   }
-  
 
   async verifyPayment(paymentData: any) {
     const { razorpay_payment_id, razorpay_order_id } = paymentData;
-  
+
     const courseBuyOrder = await this.prisma.courseBuy.findUnique({
       where: { razorpayOrderId: razorpay_order_id },
     });
-  
+
     if (!courseBuyOrder) {
       throw new NotFoundException('Order not found');
     }
-  
+
     const updatedCourseBuy = await this.prisma.courseBuy.update({
       where: { id: courseBuyOrder.id },
       data: {
@@ -615,11 +626,10 @@ export class CommonService {
         razorpayPaymentId: razorpay_payment_id,
       },
     });
-  
+
     return {
       success: true,
       message: 'Payment verified and course enrollment activated',
     };
   }
-  
 }
