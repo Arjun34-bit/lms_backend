@@ -200,8 +200,6 @@ export class AuthService {
         },
       });
 
-      console.log(user?.phoneNumber);
-
       if (!user) {
         user = await this.prisma.user.create({
           data: {

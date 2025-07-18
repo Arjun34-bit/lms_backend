@@ -33,8 +33,18 @@ export class StudentAuthController {
   }
 
   @Post('login-with-phone-number')
-  async loginWithPhoneNumber(@Body() body: LoginWithPhoneNumberDto) {
+  async loginWithPhoneNumber(
+    @Body() body: LoginWithPhoneNumberDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     const data = await this.authService.loginWithPhoneNumber(body.idToken);
+    res.cookie('auth_token', data.access_token, {
+      httpOnly: true,
+      secure: false,
+      sameSite: 'strict',
+      maxAge: 1000 * 60 * 60 * 24,
+      path: '/',
+    });
     return this.apiUtilsSevice.make_response(data);
   }
 
@@ -46,7 +56,7 @@ export class StudentAuthController {
     const data = await this.authService.login(loginDto);
     res.cookie('auth_token', data.access_token, {
       httpOnly: true,
-      secure: false, // change it into true on production
+      secure: false,
       sameSite: 'strict',
       maxAge: 1000 * 60 * 60 * 24,
       path: '/',
@@ -55,8 +65,18 @@ export class StudentAuthController {
   }
 
   @Post('google-login')
-  async googleLogin(@Body('idToken') idToken: string): Promise<ApiResponseT> {
+  async googleLogin(
+    @Body('idToken') idToken: string,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<ApiResponseT> {
     const data = await this.authService.googleLogin(idToken);
+    res.cookie('auth_token', data.access_token, {
+      httpOnly: true,
+      secure: false,
+      sameSite: 'strict',
+      maxAge: 1000 * 60 * 60 * 24,
+      path: '/',
+    });
     return this.apiUtilsSevice.make_response(data);
   }
 
