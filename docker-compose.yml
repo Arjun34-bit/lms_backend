@@ -1,4 +1,20 @@
 services:
+  app:
+    build: .
+    container_name: nest-app
+    command: npm run start:prod
+    ports:
+      - '8287:8287'
+    depends_on:
+      - mongo
+      - redis
+    environment:
+      - MONGO_URI=mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@mongo:27017/?authSource=admin&replicaSet=rs0
+      - REDIS_HOST=redis
+      - PORT=8287
+    volumes:
+      - .:/app
+    restart: unless-stopped
   mongo:
     image: mongo:8.0
     container_name: mongo
@@ -18,7 +34,7 @@ services:
         chmod 400 /data/mongo_replica_set.key
         chown 999:999 /data/mongo_replica_set.key
         exec docker-entrypoint.sh $$@
-    command: "mongod --bind_ip_all --replSet rs0 --keyFile /data/mongo_replica_set.key"
+    command: 'mongod --bind_ip_all --replSet rs0 --keyFile /data/mongo_replica_set.key'
 
   mongo-express:
     image: mongo-express
@@ -35,13 +51,23 @@ services:
     depends_on:
       - mongo
 
+  redis:
+    image: redis:7.2-alpine
+    container_name: redis
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    command: ['redis-server', '--appendonly', 'yes']
+    restart: unless-stopped
 
 volumes:
+  redis_data:
+    name: redis_data
+    driver: local
   mongodb_data:
     name: mongodb_data
     driver: local
   mongodb_config:
     name: mongodb_config
     driver: local
-
-

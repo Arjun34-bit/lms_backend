@@ -287,44 +287,4 @@ export class MediasoupGateway {
       return { success: false, error: error.message };
     }
   }
-
-  @SubscribeMessage('start-recording')
-  async handleRecording(
-    socket: Socket,
-    {
-      roomId,
-    }: {
-      roomId: string;
-    },
-  ) {
-    try {
-      console.log('Recording Starting.....');
-      const record = await this.mediasoupService.startRecording(roomId,socket.id);
-      console.log('Recording Started');
-      return { success: true };
-    } catch (error) {
-      console.error('Error in starting recording:', error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  @SubscribeMessage('stop-recording')
-  async handleStopRecording(
-    socket: Socket,
-    {
-      roomId,
-    }: {
-      roomId: string;
-    },
-  ) { 
-    try {
-      const user = socket.data.user;
-      console.log(user)
-      const record = await this.mediasoupService.stopRecording(roomId,user);
-      return { success: true };
-    } catch (error) {
-      console.error('Error in stoping recording:', error);
-      return { success: false, error: error.message };
-    }
-  }
 }
