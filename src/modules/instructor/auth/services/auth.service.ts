@@ -209,7 +209,7 @@ export class AuthService {
         instructorId: user?.instructor?.id,
       };
 
-      const expiresIn = rememberMe ? "365d": "2d";
+      const expiresIn = rememberMe ? '365d' : '2d';
 
       return {
         access_token: this.jwtService.sign(payload, { expiresIn }),
@@ -222,6 +222,7 @@ export class AuthService {
       throw error;
     }
   }
+
   async loginWithPhoneNumber(idToken: string) {
     try {
       const decodedToken = await firebaseAuth.verifyIdToken(idToken);
@@ -275,16 +276,15 @@ export class AuthService {
       throw error;
     }
   }
+
   async googleLogin(idToken: string) {
     try {
-      // Verify the ID token with Firebase Admin SDK
       const decodedToken = await firebaseAuth.verifyIdToken(idToken);
       const { email, name, uid } = decodedToken;
       if (!email) {
         throw new BadRequestException('Invalid Google account');
       }
 
-      // Check if the user already exists
       let user: any = await this.prisma.user.findUnique({
         where: { email },
         include: {
@@ -296,7 +296,6 @@ export class AuthService {
         },
       });
       if (!user) {
-        // If user doesn't exist, create a new user
         user = await this.prisma.user.create({
           data: {
             name: name || 'Google User',
