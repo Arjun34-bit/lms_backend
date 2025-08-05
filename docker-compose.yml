@@ -1,6 +1,6 @@
 services:
   app:
-    build: .
+    image: 466436411608.dkr.ecr.eu-north-1.amazonaws.com/lms-server:latest
     container_name: nest-app
     command: npm run start:prod
     ports:
@@ -9,11 +9,9 @@ services:
       - mongo
       - redis
     environment:
-      - MONGO_URI=mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@mongo:27017/?authSource=admin&replicaSet=rs0
+      - MONGO_URI=${MONGO_URI}
       - REDIS_HOST=redis
       - PORT=8287
-    volumes:
-      - .:/app
     restart: unless-stopped
   mongo:
     image: mongo:8.0
