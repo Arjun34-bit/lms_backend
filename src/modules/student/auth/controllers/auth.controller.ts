@@ -40,7 +40,7 @@ export class StudentAuthController {
     const data = await this.authService.loginWithPhoneNumber(body.idToken);
     res.cookie('auth_token', data.access_token, {
       httpOnly: true,
-      secure: false,
+      secure: true,
       sameSite: 'strict',
       maxAge: 1000 * 60 * 60 * 24,
       path: '/',
@@ -56,7 +56,7 @@ export class StudentAuthController {
     const data = await this.authService.login(loginDto);
     res.cookie('auth_token', data.access_token, {
       httpOnly: true,
-      secure: false,
+      secure: true, // Make it True in production
       sameSite: 'strict',
       maxAge: 1000 * 60 * 60 * 24,
       path: '/',
@@ -72,7 +72,7 @@ export class StudentAuthController {
     const data = await this.authService.googleLogin(idToken);
     res.cookie('auth_token', data.access_token, {
       httpOnly: true,
-      secure: false,
+      secure: true,
       sameSite: 'strict',
       maxAge: 1000 * 60 * 60 * 24,
       path: '/',
@@ -93,7 +93,7 @@ export class StudentAuthController {
   async logout(@Res({ passthrough: true }) res: Response) {
     res.clearCookie('auth_token', {
       httpOnly: true,
-      secure: false,
+      secure: true,
       sameSite: 'strict',
       path: '/',
     });

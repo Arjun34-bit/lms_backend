@@ -4,7 +4,7 @@ dotenv.config();
 export const envConstant = {
   PORT: Number(process.env.PORT) || 8287,
 
-  BASE_URL: process.env.BASE_URL || `http://localhost:8287`,
+  BASE_URL: process.env.BASE_URL || `https://lms-student-znlh.onrender.com`,
 
   CLIENT_BASE_URL: process.env.CLIENT_BASE_URL || 'http://localhost:8289',
 
