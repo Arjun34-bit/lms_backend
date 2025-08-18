@@ -16,10 +16,25 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 18
 
       - name: Install dependencies
         run: npm install
 
+      - name: Set up Docker Compose
+        run: docker-compose up -d
+
+      - name: Wait for Mongo/Redis to be ready
+        run: |
+          echo "Waiting for MongoDB and Redis..."
+          sleep 20
+
       - name: Run tests
+        env:
+          MONGO_INITDB_ROOT_USERNAME: ${{ secrets.MONGO_INITDB_ROOT_USERNAME }}
+          MONGO_INITDB_ROOT_PASSWORD: ${{ secrets.MONGO_INITDB_ROOT_PASSWORD }}
         run: npm test
+
+      - name: Stop Docker Compose
+        if: always()
+        run: docker-compose down -v
