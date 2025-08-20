@@ -12,10 +12,10 @@ export class AssignmentService {
 
     // First check if subject exists
     const subject = await this.prisma.subject.findFirst({
-      where: { name: subjectName }
+      where: { name: subjectName },
     });
 
-    if (!subject) { 
+    if (!subject) {
       throw new NotFoundException(`Subject with name ${subjectName} not found`);
     }
 
@@ -23,19 +23,19 @@ export class AssignmentService {
       data: {
         name: assignmentName,
         subjectId: subject.id,
-        question: questions.map(q => q.question).join('\n')
+        question: questions.map((q) => q.question).join('\n'),
       },
       include: {
-        subject: true
-      }
+        subject: true,
+      },
     });
   }
 
   async findAll() {
     return this.prisma.assignment.findMany({
       include: {
-        subject: true
-      }
+        subject: true,
+      },
     });
   }
 
@@ -43,8 +43,8 @@ export class AssignmentService {
     const assignment = await this.prisma.assignment.findUnique({
       where: { id },
       include: {
-        subject: true
-      }
+        subject: true,
+      },
     });
 
     if (!assignment) {
@@ -58,7 +58,7 @@ export class AssignmentService {
     const { assignmentName, questions } = updateAssignmentDto;
 
     const existingAssignment = await this.prisma.assignment.findUnique({
-      where: { id }
+      where: { id },
     });
 
     if (!existingAssignment) {
@@ -66,27 +66,27 @@ export class AssignmentService {
     }
 
     const updateData: any = {};
-    
+
     if (assignmentName) {
       updateData.name = assignmentName;
     }
-    
+
     if (questions) {
-      updateData.question = questions.map(q => q.question).join('\n');
+      updateData.question = questions.map((q) => q.question).join('\n');
     }
 
     return this.prisma.assignment.update({
       where: { id },
       data: updateData,
       include: {
-        subject: true
-      }
+        subject: true,
+      },
     });
   }
 
   async remove(id: string) {
     const assignment = await this.prisma.assignment.findUnique({
-      where: { id }
+      where: { id },
     });
 
     if (!assignment) {
@@ -96,8 +96,8 @@ export class AssignmentService {
     return this.prisma.assignment.delete({
       where: { id },
       include: {
-        subject: true
-      }
+        subject: true,
+      },
     });
   }
 }
