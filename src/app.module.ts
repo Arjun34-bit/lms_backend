@@ -32,14 +32,19 @@ import { SeedModule } from './seed/seed.module';
     ApiUtilsModule,
     CommonModule,
     EmailModule,
-    CacheModule.registerAsync(RedisOptions),
-    BullModule.forRoot({
-      redis: {
-        host: envConstant.REDIS_HOST,
-        port: envConstant.PORT,
-        db: envConstant.REDIS_DB,
-      },
-    }),
+    ...(process.env.NODE_ENV === 'test'
+      ? []
+      : [
+          CacheModule.registerAsync(RedisOptions),
+          BullModule.forRoot({
+            redis: {
+              host: envConstant.REDIS_HOST,
+              port: envConstant.PORT,
+              db: envConstant.REDIS_DB,
+            },
+          }),
+          WebSocketModule,
+        ]),
     InstructorModule,
     StudentModule,
     SupportModule,
@@ -65,7 +70,7 @@ export class AppModule implements OnModuleInit {
     private readonly subjectSeederService: SubjectSeederService,
     private readonly categorySeederService: CategorySeederService,
     private readonly languageSeederService: LanguageSeederService,
-  ) { }
+  ) {}
 
   async onModuleInit() {
     await this.departmentSeederService.departmentSeed();

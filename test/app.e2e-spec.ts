@@ -6,7 +6,7 @@ import { AppModule } from './../src/app.module';
 describe('AppController (e2e)', () => {
   let app: INestApplication;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     jest.setTimeout(20000);
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
